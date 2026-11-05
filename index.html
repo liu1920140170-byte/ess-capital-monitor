@@ -159,19 +159,22 @@
 
   <div class="toolbar">
     <div class="tabs" id="tabs"></div>
-    <div class="sortseg" id="sortSeg" title="切换时间轴排序方式">
-      <button type="button" class="seg" data-sort="time">按时间</button>
-      <button type="button" class="seg" data-sort="amount">按金额</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label class="auto" title="只显示微信公众号文章（质量更高、有完整分析）"><input type="checkbox" id="wxOnly">只看公众号</label>
+      <div class="sortseg" id="sortSeg" title="切换时间轴排序方式">
+        <button type="button" class="seg" data-sort="time">按时间</button>
+        <button type="button" class="seg" data-sort="amount">按金额</button>
+      </div>
+      <input type="search" id="q" placeholder="搜索公司 / 关键词（如 中集、REITs、增资）">
     </div>
-    <input type="search" id="q" placeholder="搜索公司 / 关键词（如 中集、REITs、增资）">
   </div>
 
   <main id="list"></main>
 
   <footer>
     <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
-    <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 60 秒自动刷新，手动刷新会等待最新一轮抓取；上游结果缓存 10 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
-    <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
+    <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 30 分钟自动刷新（右上角显示倒计时），手动刷新会强制重抓；上游结果缓存 30 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
+    <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；同一条事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，非公众号条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
     <div><b>数据源</b>：新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ 微信公众号（带「公众号」标记）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
@@ -271,6 +274,7 @@ const WEEK = ["周日","周一","周二","周三","周四","周五","周六"];
 let items = EMBEDDED.items.map(x => Object.assign({}, x, {_src:"snapshot"}));
 let meta = {fetchedAt: EMBEDDED.fetchedAt, window: EMBEDDED.window, kind:"snapshot"};
 let filterCat = "all", keyword = "";
+let wxOnly = false;             // 只看微信公众号文章
 let sortMode = "time";          // time | amount
 try{ const sv = localStorage.getItem("ess_sort_mode"); if(sv==="amount"||sv==="time") sortMode = sv; }catch(e){}
 try{ const qp = new URLSearchParams(document.location.search).get("sort"); if(qp==="amount"||qp==="time") sortMode = qp; }catch(e){}
@@ -323,7 +327,8 @@ function inWindow(it){
 }
 function visibleItems(){
   // 实时模式下按所选时窗过滤；纯快照模式保留全部内置条目，避免旧快照条目被“当前时间”误删
-  return live ? items.filter(inWindow) : items;
+  const base = live ? items.filter(inWindow) : items;
+  return wxOnly ? base.filter(i=>i.via === "wechat") : base;
 }
 
 /* ---------- 金额 / 比例提取与高亮 ---------- */
@@ -465,10 +470,14 @@ function render(){
   }
 
   if(!list.length){
-    document.getElementById("list").innerHTML = `<div class="empty">当前筛选下暂无线索，试着切换分类或清空搜索词。${(keyword||filterCat!=="all")?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
+    document.getElementById("list").innerHTML = `<div class="empty">${wxOnly
+      ? `本轮没有抓到微信公众号文章（搜狗微信搜索触发限流时会暂停抓取）。<br>可取消「只看公众号」，其他来源的原文链接同样可点击。`
+      : `当前筛选下暂无线索，试着切换分类或清空搜索词。`}${(keyword||filterCat!=="all"||wxOnly)?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
     const btnReset = document.getElementById("btnReset");
     if(btnReset) btnReset.onclick = ()=>{
-      filterCat = "all"; keyword = ""; document.getElementById("q").value = ""; render();
+      filterCat = "all"; keyword = ""; wxOnly = false;
+      const cb = document.getElementById("wxOnly"); if(cb) cb.checked = false;
+      document.getElementById("q").value = ""; render();
     };
     return;
   }
@@ -512,6 +521,8 @@ function render(){
     const alt = (it.via==="news" || !it.via) && it._src!=="snapshot"
       ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
       : "";
+    const wxSearch = it.via==="wechat" ? ""
+      : ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
     html += `<div class="card" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
       <div class="crow">
         <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
@@ -521,7 +532,7 @@ function render(){
       </div>
       <h4>${decorate(it.title, keyword)}</h4>
       ${note?`<p class="note">${note}</p>`:""}
-      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a>${alt}</div>
+      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a>${wxSearch}${alt}</div>
     </div>`;
   });
   document.getElementById("list").innerHTML = html;
@@ -637,6 +648,10 @@ document.getElementById("sortSeg").addEventListener("click", e=>{
 });
 document.getElementById("q").addEventListener("input", e=>{
   keyword = e.target.value.trim();
+  render();
+});
+document.getElementById("wxOnly").addEventListener("change", e=>{
+  wxOnly = e.target.checked;
   render();
 });
 document.getElementById("btn").addEventListener("click", ()=>loadLive(false, true));
