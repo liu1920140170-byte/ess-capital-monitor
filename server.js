@@ -101,9 +101,10 @@ const WX_QUERIES = [
   ['wx_ind', '工商业储能'],
   ['wx_mkt', '储能 装机 市场']
 ].map(([id, t]) => ({ id, t }));
-const WX_GAP_MS = 4000;                        // 搜狗对高频请求很敏感，查询间隔 4 秒
-const WX_CACHE_MS = 30 * 60 * 1000;            // 公众号结果复用 30 分钟
-const WX_BLOCK_BACKOFF_MS = 45 * 60 * 1000;    // 触发验证码后退避 45 分钟
+const WX_TICK_MS = 40 * 1000;                   // 后台每 40 秒只发 1 个检索，避免触发搜狗风控
+const WX_POOL_MAX = 300;                        // 公众号池上限
+const WX_MAX_AGE_MS = 96 * 3600 * 1000;         // 池内保留 96 小时
+const WX_BLOCK_BACKOFF_MS = 20 * 60 * 1000;     // 触发验证码后退避 20 分钟再试探
 const WX_CACHE_FILE = path.join(ROOT, 'wx_cache.json');
 
 const RE_CHAIN = /储能|新型储能|锂电|锂电池|锂离子|钠离子|钠电|固态电池|半固态|液流|钒电池|压缩空气|飞轮储能|氢储|电芯|电池包|PACK|BMS|EMS|PCS|变流器|逆变器|光储|光伏|风电|氢能|充电桩|超充|换电|虚拟电厂|微电网|源网荷储|电力现货|容量电价|正极|负极|电解液|隔膜|结构件|铜箔|铝箔|电池回收|梯次利用|热管理|温控|消防|储能电站|工商业储能|户用储能|独立储能|共享储能/;
@@ -120,7 +121,6 @@ let lastError = '';
 let lastWechat = { ok: false, raw: 0, error: '', at: 0 };
 let wxCache = { at: 0, raw: [] };
 let wxInflight = null;
-let wxBackoffUntil = 0;
 const startedAt = Date.now();
 
 /* ---------------- 工具函数 ---------------- */
@@ -344,8 +344,10 @@ function loadWxCache() {
     if (!fs.existsSync(WX_CACHE_FILE)) return;
     const o = JSON.parse(fs.readFileSync(WX_CACHE_FILE, 'utf8'));
     if (o && Array.isArray(o.raw) && o.raw.length) {
-      wxCache = { at: Number(o.at) || 0, raw: o.raw };
-      console.log(`[wechat] 载入本地缓存 ${o.raw.length} 条`);
+      wxPool = o.raw;
+      pruneWxPool();
+      wxCache = { at: Number(o.at) || 0, raw: wxPool.slice() };
+      console.log(`[wechat] 载入本地缓存 ${wxPool.length} 条`);
     }
   } catch (e) {
     console.warn(`[wechat] 缓存读取失败：${e.message}`);
@@ -361,56 +363,77 @@ function saveWxCache() {
 }
 
 async function fetchWechat() {
-  // 两个时窗会连续刷新，公众号结果 30 分钟内复用；被验证码拦截时退避 45 分钟
-  if (wxCache.raw.length && Date.now() - wxCache.at < WX_CACHE_MS) return wxCache.raw;
-  if (Date.now() < wxBackoffUntil) return wxCache.raw;
-  if (wxInflight) return wxInflight;
-  wxInflight = fetchWechatOnce().finally(() => { wxInflight = null; });
+  // 公众号结果由后台慢速队列持续累积，这里只返回当前池，不阻塞 /api/news
+  return wxPool.slice();
+}
+
+/* 单次试探：只发 1 个检索式，成功就并入公众号池；被验证码拦截则退避 20 分钟 */
+let wxQIndex = 0;
+let wxPool = [];
+let wxBlockedUntil = 0;
+
+function wxTitleKey(t) {
+  return String(t || '').replace(RE_NONWORD, '').slice(0, 40);
+}
+
+function pruneWxPool() {
+  const cutoff = Date.now() - WX_MAX_AGE_MS;
+  const seen = new Set();
+  const out = [];
+  // 新的在前，按标题去重
+  for (const it of wxPool.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
+    const k = wxTitleKey(it.title);
+    if (!k || seen.has(k)) continue;
+    if ((it.ts || 0) < cutoff) continue;
+    seen.add(k);
+    out.push(it);
+    if (out.length >= WX_POOL_MAX) break;
+  }
+  wxPool = out;
+}
+
+async function wxTick() {
+  if (Date.now() < wxBlockedUntil) return;
+  if (wxInflight) return;
+  wxInflight = (async () => {
+    const q = WX_QUERIES[wxQIndex % WX_QUERIES.length];
+    wxQIndex++;
+    const url = 'https://weixin.sogou.com/weixin?type=2&ie=utf8&query=' + encodeURIComponent(q.t);
+    let html = null;
+    try {
+      html = await httpGet(url, 0, { Referer: 'https://weixin.sogou.com/', 'Accept-Encoding': 'identity' });
+    } catch (e) {
+      lastWechat = { ok: false, raw: wxPool.length, error: e.message, at: Date.now() };
+      return;
+    }
+    if (!html) return;
+    if (/antispider|请输入验证码|访问过于频繁/.test(html)) {
+      wxBlockedUntil = Date.now() + WX_BLOCK_BACKOFF_MS;
+      lastWechat = { ok: false, raw: wxPool.length, error: '触发验证码', at: Date.now() };
+      console.warn(`[wechat] 触发验证码，${Math.round(WX_BLOCK_BACKOFF_MS / 60000)} 分钟后重试；池内保留 ${wxPool.length} 条`);
+      return;
+    }
+    let got = [];
+    try {
+      got = parseSogou(html, q.id);
+    } catch (e) {
+      console.warn(`[wechat] parse ${q.id} failed: ${e.message}`);
+    }
+    if (got.length) {
+      wxPool = wxPool.concat(got);
+      pruneWxPool();
+      wxCache = { at: Date.now(), raw: wxPool.slice() };
+      saveWxCache();
+    }
+    lastWechat = { ok: got.length > 0, raw: wxPool.length, error: '', at: Date.now() };
+    console.log(`[wechat] ${q.id} +${got.length}，池内 ${wxPool.length} 条`);
+  })().finally(() => { wxInflight = null; });
   return wxInflight;
 }
 
-async function fetchWechatOnce() {
-  const out = [];
-  const t0 = Date.now();
-  let okCount = 0;
-  let errMsg = '';
-  let blocked = false;
-  for (const q of WX_QUERIES) {
-    if (Date.now() - t0 > 60000) break;
-    const url = 'https://weixin.sogou.com/weixin?type=2&ie=utf8&query=' + encodeURIComponent(q.t);
-    let html = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        html = await httpGet(url, 0, { Referer: 'https://weixin.sogou.com/', 'Accept-Encoding': 'identity' });
-        break;
-      } catch (e) {
-        errMsg = e.message;
-        if (attempt === 2 || /timeout/i.test(e.message)) break;
-        await sleep(800);
-      }
-    }
-    if (html) {
-      if (/antispider|请输入验证码|访问过于频繁/.test(html)) { errMsg = '触发验证码'; blocked = true; break; }
-      okCount++;
-      try {
-        out.push(...parseSogou(html, q.id));
-      } catch (e) {
-        console.warn(`[wechat] parse ${q.id} failed: ${e.message}`);
-      }
-    }
-    await sleep(WX_GAP_MS);
-  }
-  if (blocked) {
-    wxBackoffUntil = Date.now() + WX_BLOCK_BACKOFF_MS;
-    console.warn(`[wechat] 触发验证码，${Math.round(WX_BLOCK_BACKOFF_MS / 60000)} 分钟后重试；沿用上次缓存 ${wxCache.raw.length} 条`);
-  }
-  lastWechat = { ok: okCount > 0, raw: out.length, error: errMsg, at: Date.now() };
-  if (out.length) {
-    wxCache = { at: Date.now(), raw: out };
-    saveWxCache();
-  }
-  console.log(`[wechat] queries ok=${okCount}/${WX_QUERIES.length} raw=${out.length}${errMsg ? ' err=' + errMsg : ''}`);
-  return out.length ? out : wxCache.raw;
+function startWechatLoop() {
+  setTimeout(() => { wxTick(); }, 2000);
+  setInterval(() => { wxTick(); }, WX_TICK_MS);
 }
 
 function classify(text) {
@@ -489,7 +512,12 @@ function selectItems(raw, days) {
     });
   }
   rows.sort((a, b) => b.ts - a.ts);
-  return rows.slice(0, 260);      // 控制首屏体积，保留最新 260 条
+  // 控制首屏体积，保留最新 260 条；公众号文章（质量最高）不因条数上限被裁掉
+  const CAP = 260;
+  if (rows.length <= CAP) return rows;
+  const keep = rows.slice(0, CAP);
+  const wxExtra = rows.slice(CAP).filter(r => r.via === 'wechat');
+  return keep.concat(wxExtra).sort((a, b) => b.ts - a.ts);
 }
 
 /* ---------------- 缓存与刷新 ---------------- */
@@ -656,6 +684,8 @@ if (require.main === module) {
   loadWxCache();
   server.listen(PORT, HOST, () => {
     console.log(`ESS dashboard listening on http://${HOST}:${PORT}`);
+    // 公众号：后台慢速增量队列（每 40 秒 1 个检索式），持续累积到池内
+    startWechatLoop();
     // 启动后在后台预热（不阻塞首个请求）
     for (const d of [3, 2]) {
       getCache(d);
