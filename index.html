@@ -98,6 +98,7 @@
   .mini.wx{color:#189a6c;border-color:#bfe3d2;background:#f2fbf7}
   .mini.direct{color:#0b6ea8;border-color:#bfdcf0;background:#f2f8fd}
   .mini.ggl{color:#9199a5;border-color:#e2e5ea;background:#fafbfc}
+  .mini.deep{color:#b7791f;border-color:#e8d5a8;background:#fdf8ee}
   .card h4{margin:0 0 5px;font-size:15px;line-height:1.55;font-weight:600;color:#111}
   .card:hover h4{color:#000}
   .note{font-size:12.4px;line-height:1.7;color:#4b5158;margin:0}
@@ -184,8 +185,8 @@
   <footer>
     <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 30 分钟自动刷新（右上角显示倒计时），手动刷新会强制重抓；上游结果缓存 30 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
-    <div><b>展示逻辑</b>：默认「按质量」排序——微信公众号原文优先，其次新浪/东财直达快讯，最后 Google 聚合转载，同级按时间倒序；也可切到「按时间 / 按金额」，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组；同一事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，其余条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
-    <div><b>数据源</b>：微信公众号（带「公众号」标记，云端后台每 40 秒 1 个检索式慢速累积）+ 新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停 20 分钟并保留已抓到的结果。</div>
+    <div><b>展示逻辑</b>：默认「按质量」排序——微信公众号原文优先，其次储能垂直媒体深度稿（北极星储能网），再次新浪/东财直达快讯，最后 Google 聚合转载，同级按时间倒序；也可切到「按时间 / 按金额」，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组；同一事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，其余条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
+    <div><b>数据源</b>：微信公众号（带「公众号」标记，云端后台每 40 秒 1 个检索式慢速累积）+ 北极星储能网（带「深度」标记，储能垂直媒体编辑稿）+ 新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停 20 分钟并保留已抓到的结果。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -306,8 +307,8 @@ function noteFor(it){
 function keyOf(t){return String(t||"").replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,"").slice(0,40);}
 const CAT_RANK = {cap:0,policy:1,tech:2,industry:3,fund:4,mna:5,jv:6,ipo:7,risk:8,other:9};
 function catRank(c){ return CAT_RANK[c]===undefined ? 6 : CAT_RANK[c]; }
-// 来源质量：微信公众号原文 > 新浪/东财直达快讯 > Google 聚合转载
-function viaRank(v){ return v==="wechat" ? 0 : (v==="sina"||v==="em") ? 1 : 2; }
+// 来源质量：微信公众号原文 > 储能垂直媒体深度稿 > 新浪/东财直达快讯 > Google 聚合转载
+function viaRank(v){ return v==="wechat" ? 0 : v==="deep" ? 1 : (v==="sina"||v==="em") ? 2 : 3; }
 
 /* ---------- 时间 / 时窗 ---------- */
 function tsOf(x){
@@ -531,7 +532,7 @@ function render(){
   }
   if(byQuality){
     const wxN = list.filter(i=>i.via==="wechat").length;
-    html += `<div class="day"><span class="d">质量优先</span><span class="w">公众号原文 → 直达快讯 → 聚合转载</span><span class="ln"></span><span class="cnt">公众号 ${wxN} 条 / 共 ${list.length} 条</span></div>`;
+    html += `<div class="day"><span class="d">质量优先</span><span class="w">公众号 → 储能垂直媒体深度稿 → 直达快讯 → 聚合转载</span><span class="ln"></span><span class="cnt">公众号 ${wxN} 条 / 共 ${list.length} 条</span></div>`;
   }
   let noAmtStarted = false;
   list.forEach((it,idx)=>{
@@ -556,6 +557,7 @@ function render(){
     const tags = [];
     if(live && it._src==="snapshot") tags.push(`<span class="mini" title="该条来自页面内置快照，实时源本轮未覆盖到">预置</span>`);
     if(it.via==="wechat") tags.push(`<span class="mini wx" title="来源为微信公众号（搜狗微信搜索），点击下方原文跳转">公众号</span>`);
+    if(it.via==="deep") tags.push(`<span class="mini deep" title="储能垂直媒体编辑稿（北极星储能网），国内可直接打开">深度</span>`);
     if(it.via==="sina" || it.via==="em") tags.push(`<span class="mini direct" title="来自新浪财经/东方财富快讯，原文链接国内可直接打开">直达</span>`);
     if((!it.via || it.via==="news") && it._src!=="snapshot") tags.push(`<span class="mini ggl" title="经 Google News 聚合，国内打开可能较慢">聚合</span>`);
     if(it._new) tags.push(`<span class="new">NEW</span>`);
@@ -599,7 +601,7 @@ function updateFreshness(){
   if(!live) return;
   const vis = visibleItems();
   const nNew = vis.filter(i=>i._new).length;
-  const extra = (nNew ? ` · +${nNew} 新` : "") + (meta.directCount ? ` · 直达 ${meta.directCount} 条` : "") + (meta.wechatCount ? ` · 公众号 ${meta.wechatCount} 条` : "");
+  const extra = (nNew ? ` · +${nNew} 新` : "") + (meta.deepCount ? ` · 深度 ${meta.deepCount} 条` : "") + (meta.directCount ? ` · 直达 ${meta.directCount} 条` : "") + (meta.wechatCount ? ` · 公众号 ${meta.wechatCount} 条` : "");
   if(Date.now() - lastErrorAt < 120e3){ setStatus("fail", "刷新失败/超时 · 保留上次结果"); return; }
   const age = Date.now() - tsOf({pubDate: meta.fetchedAt});
   if(age > 90*60e3) setStatus("stale", `缓存数据 · ${vis.length} 条${extra}`);
@@ -638,7 +640,7 @@ async function loadLive(silent, force){
     // 实时源没覆盖到、但仍在当前时窗内的内置条目，继续保留（标记“预置”）
     const keepOld = items.filter(i=> i._src==="snapshot" && inWindow(i) && !fresh.some(f=>keyOf(f.title)===keyOf(i.title)));
     items = fresh.concat(keepOld);
-    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0, directCount: data.direct || 0};
+    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0, directCount: data.direct || 0, deepCount: data.deep || 0};
     live = true;
     lastErrorAt = 0;
     updateFreshness();
