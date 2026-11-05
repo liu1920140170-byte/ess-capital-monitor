@@ -107,6 +107,15 @@
   .src a:hover{text-decoration:underline;color:var(--red)}
   .empty{padding:40px 0;text-align:center;color:var(--dim2);font-size:13px}
   .empty button{margin-top:12px}
+  .wxpanel{border:1px solid var(--line);border-left:3px solid var(--green);border-radius:3px;padding:16px 18px;margin:6px 0 10px;background:#fbfcfd}
+  .wxpanel h3{margin:0 0 8px;font-size:14px;color:#111;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .wxpanel h3 .n{font-size:11px;color:var(--dim2);font-weight:400}
+  .wxtip{margin:0 0 10px;font-size:12.3px;line-height:1.7;color:#4b5158}
+  .wxgrid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .wxlink{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:#189a6c;
+    border:1px solid #bfe3d2;background:#f2fbf7;border-radius:3px;padding:5px 10px;transition:.18s}
+  .wxlink:hover{color:#fff;background:var(--green);border-color:var(--green)}
+  .wxlink.inline{padding:1px 7px}
 
   .ins{cursor:pointer;transition:.18s}
   .ins:hover{border-color:#d7dae0;background:#f5f7f9;box-shadow:0 1px 3px rgba(16,24,40,.05)}
@@ -160,7 +169,7 @@
   <div class="toolbar">
     <div class="tabs" id="tabs"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <label class="auto" title="只显示微信公众号文章（质量更高、有完整分析）"><input type="checkbox" id="wxOnly">只看公众号</label>
+      <label class="auto" title="只显示微信公众号文章（质量更高、有完整分析）"><input type="checkbox" id="wxOnly"><span id="wxOnlyTxt">只看公众号</span></label>
       <div class="sortseg" id="sortSeg" title="切换时间轴排序方式">
         <button type="button" class="seg" data-sort="time">按时间</button>
         <button type="button" class="seg" data-sort="amount">按金额</button>
@@ -433,10 +442,38 @@ function renderBrief(vis){
   }).join("");
 }
 
+/* ---------- 公众号直连检索（云端抓取被搜狗限流时的人工入口） ---------- */
+const WX_TOPICS = [
+  ["收并购", "储能 并购"],
+  ["设立基金", "储能 基金"],
+  ["扩产投产", "储能 扩产 投产"],
+  ["中标订单", "储能 中标 订单"],
+  ["政策电价", "储能 政策 电价"],
+  ["技术产品", "储能 技术 电芯"],
+  ["出海海外", "储能 出海"],
+  ["价格内卷", "储能 价格 内卷"],
+  ["长时储能", "长时储能 液流"],
+  ["工商业", "工商业储能"]
+];
+function wxTopicPanel(){
+  const meta2 = (meta.wechatCount ? `本轮云端抓取 ${meta.wechatCount} 条` : "云端抓取本轮未命中公众号文章");
+  return `<div class="wxpanel">
+    <h3>微信公众号检索入口<span class="n">${meta2}</span></h3>
+    <p class="wxtip">云端服务器 IP 会被搜狗微信搜索拦截验证码，但你自己网络不受影响。点下面任一主题，直接打开公众号文章搜索结果，按时间排序挑选原文。</p>
+    <div class="wxgrid">${WX_TOPICS.map(([label,q])=>
+      `<a class="wxlink" href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(q)}" target="_blank" rel="noopener noreferrer">${label}<span>↗</span></a>`
+    ).join("")}</div>
+    <p class="wxtip">也可以直接搜关键词：<a class="wxlink inline" href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(keyword || "储能")}" target="_blank" rel="noopener noreferrer">${esc(keyword || "储能")} ↗</a></p>
+  </div>`;
+}
+
 function render(){
   const vis = visibleItems();
   const counts = {all: vis.length};
   vis.forEach(i=>{counts[i.cat]=(counts[i.cat]||0)+1;});
+  const wxTotal = (live ? items.filter(inWindow) : items).filter(i=>i.via==="wechat").length;
+  const wxTxt = document.getElementById("wxOnlyTxt");
+  if(wxTxt) wxTxt.textContent = `只看公众号（${wxTotal}）`;
 
   const tabKeys = ["all","fund","mna","jv","ipo","cap","tech","policy","industry","risk"];
   if(counts.other) tabKeys.push("other");
@@ -470,9 +507,7 @@ function render(){
   }
 
   if(!list.length){
-    document.getElementById("list").innerHTML = `<div class="empty">${wxOnly
-      ? `本轮没有抓到微信公众号文章（搜狗微信搜索触发限流时会暂停抓取）。<br>可取消「只看公众号」，其他来源的原文链接同样可点击。`
-      : `当前筛选下暂无线索，试着切换分类或清空搜索词。`}${(keyword||filterCat!=="all"||wxOnly)?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
+    document.getElementById("list").innerHTML = wxOnly ? wxTopicPanel() : `<div class="empty">当前筛选下暂无线索，试着切换分类或清空搜索词。${(keyword||filterCat!=="all")?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
     const btnReset = document.getElementById("btnReset");
     if(btnReset) btnReset.onclick = ()=>{
       filterCat = "all"; keyword = ""; wxOnly = false;
@@ -521,8 +556,7 @@ function render(){
     const alt = (it.via==="news" || !it.via) && it._src!=="snapshot"
       ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
       : "";
-    const wxSearch = it.via==="wechat" ? ""
-      : ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
+    const wxSearch = ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
     html += `<div class="card" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
       <div class="crow">
         <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
