@@ -99,6 +99,11 @@
   .mini.direct{color:#0b6ea8;border-color:#bfdcf0;background:#f2f8fd}
   .mini.ggl{color:#9199a5;border-color:#e2e5ea;background:#fafbfc}
   .mini.deep{color:#b7791f;border-color:#e8d5a8;background:#fdf8ee}
+  .hot-tag{font-size:10px;font-weight:700;color:#fff;background:var(--red);border-radius:2px;padding:1.5px 5px;letter-spacing:.5px;line-height:1.35}
+  .card.hot{border-left-color:var(--red);background:#fffdfd}
+  .card.hot:hover{background:#fff8f8}
+  .hot-title{color:var(--red)!important}
+  .hot-title:hover{color:#b71c1c!important}
   .card h4{margin:0 0 5px;font-size:15px;line-height:1.55;font-weight:600;color:#111}
   .card:hover h4{color:#000}
   .note{font-size:12.4px;line-height:1.7;color:#4b5158;margin:0}
@@ -183,10 +188,11 @@
   <main id="list"></main>
 
   <footer>
-    <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
+    <div><b>数据口径</b>：北京时间为准的滚动时窗；信息来源为 Google News RSS 中文频道（47 组检索式）× 公众号检索 × 直连快讯 × 储能垂直媒体，统一做「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 30 分钟自动刷新（右上角显示倒计时），手动刷新会强制重抓；上游结果缓存 30 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
     <div><b>展示逻辑</b>：默认「按质量」排序——微信公众号原文优先，其次储能垂直媒体深度稿（北极星储能网），再次新浪/东财直达快讯，最后 Google 聚合转载，同级按时间倒序；也可切到「按时间 / 按金额」，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组；同一事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，其余条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
     <div><b>数据源</b>：微信公众号（带「公众号」标记，云端后台每 40 秒 1 个检索式慢速累积）+ 北极星储能网（带「深度」标记，储能垂直媒体编辑稿）+ 新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停 20 分钟并保留已抓到的结果。</div>
+    <div><b>热度标红</b>：红色「热」标记 + 红字标题表示热度分 ≥3，算法为——同一事件被 2 家来源报道 +2（≥3 家 +3）、标题金额 ≥10 亿 +2（≥1 亿 +1）、含强信号词（重磅/首次/爆发/落地/百亿…）+1、政策/资本类 +1、公众号/深度源 +1。各数据源不提供统一阅读量，故以「多源命中 + 体量 + 信号强度」近似财联社式热稿，悬浮徽标可看打分依据。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -309,6 +315,30 @@ const CAT_RANK = {cap:0,policy:1,tech:2,industry:3,fund:4,mna:5,jv:6,ipo:7,risk:
 function catRank(c){ return CAT_RANK[c]===undefined ? 6 : CAT_RANK[c]; }
 // 来源质量：微信公众号原文 > 储能垂直媒体深度稿 > 新浪/东财直达快讯 > Google 聚合转载
 function viaRank(v){ return v==="wechat" ? 0 : v==="deep" ? 1 : (v==="sina"||v==="em") ? 2 : 3; }
+// 热度依据（后端打分透传 heat/srcCount，前端仅用于悬浮说明）
+function heatReason(it){
+  const parts = [];
+  if((it.srcCount||1) >= 2) parts.push(`${it.srcCount} 家来源同时报道`);
+  const yi = amountTextNum(it.title);
+  if(yi >= 10) parts.push(`金额体量 ${yi >= 100 ? Math.round(yi) : yi} 亿`);
+  else if(yi >= 1) parts.push(`金额 ${yi} 亿`);
+  if(/重磅|独家|首次|首个|突破|爆发|刷新|创纪录|里程碑|历史新高|全面|落地|开闸|规模最大|全球最大|国家级|千亿|百亿|多家|密集|超预期/.test(it.title)) parts.push("含强信号词");
+  if(it.cat==="cap" || it.cat==="policy") parts.push("政策/资本类");
+  if(it.via==="wechat" || it.via==="deep") parts.push("深度源");
+  return "热度 " + (it.heat||0) + " 分" + (parts.length ? "：" + parts.join("、") : "");
+}
+function amountTextNum(title){
+  const t = String(title||"");
+  let best = 0;
+  const re = /(\d+(?:\.\d+)?)\s*(亿|万)(?:元|美元|港元)?/g;
+  let m;
+  while((m = re.exec(t))){
+    const v = Number(m[1]); if(!Number.isFinite(v)) continue;
+    const yi = m[2]==="亿" ? v : v/10000;
+    if(yi > best) best = yi;
+  }
+  return best;
+}
 
 /* ---------- 时间 / 时窗 ---------- */
 function tsOf(x){
@@ -560,6 +590,8 @@ function render(){
     if(it.via==="deep") tags.push(`<span class="mini deep" title="储能垂直媒体编辑稿（北极星储能网），国内可直接打开">深度</span>`);
     if(it.via==="sina" || it.via==="em") tags.push(`<span class="mini direct" title="来自新浪财经/东方财富快讯，原文链接国内可直接打开">直达</span>`);
     if((!it.via || it.via==="news") && it._src!=="snapshot") tags.push(`<span class="mini ggl" title="经 Google News 聚合，国内打开可能较慢">聚合</span>`);
+    const isHot = Number.isFinite(it.heat) ? it.hot : false;
+    if(isHot) tags.unshift(`<span class="hot-tag" title="${heatReason(it)}">热</span>`);
     if(it._new) tags.push(`<span class="new">NEW</span>`);
     const amt = byAmount ? amountText(it) : "";
     const amtTag = byAmount
@@ -570,14 +602,14 @@ function render(){
       ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
       : "";
     const wxSearch = ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
-    html += `<div class="card" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
+    html += `<div class="card${isHot ? " hot" : ""}" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
       <div class="crow">
         <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
         ${tags.join("")}
         ${amtTag}
         <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"} · ${esc(it.source||"未知来源")}</span>
       </div>
-      <h4>${decorate(it.title, keyword)}</h4>
+      <h4${isHot ? ' class="hot-title"' : ''}>${decorate(it.title, keyword)}</h4>
       ${note?`<p class="note">${note}</p>`:""}
       <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a>${wxSearch}${alt}</div>
     </div>`;
