@@ -112,6 +112,22 @@ const RE_CHAIN = /储能|新型储能|锂电|锂电池|锂离子|钠离子|钠�
 const RE_CORE = /储能|锂电|锂电池|锂离子|钠离子|钠电|固态电池|半固态|液流|钒电池|压缩空气|飞轮|氢储|电芯|电池|PACK|BMS|EMS|PCS|变流器|逆变器|光储|光伏|风电|氢能|超充|换电|虚拟电厂|微电网|源网荷储|电力现货|容量电价|正极|负极|电解液|隔膜|结构件|铜箔|铝箔|梯次利用|热管理|温控|储能电站|独立储能|共享储能/;
 const RE_COMPANY = /宁德时代|比亚迪|亿纬|国轩|中创新航|欣旺达|海辰|鹏辉|南都电源|派能|沃太|艾罗|德业|锦浪|固德威|科华|上能电气|盛弘|禾望|英维克|申菱|同飞|高澜|阳光电源|天合光能|阿特斯|晶科|隆基|通威|协鑫|天能|超威|南孚|珠海冠宇|力神|瑞浦|兰钧|蜂巢|远景|双一力|精控|许继|平高|四方|南网科技|禾迈|正泰|思源|科陆|林洋|智光|中天科技|亨通|国电南瑞|特变电工|海博思创|双登|雄韬|中国电建|中国能建|三峡能源|中广核|晶澳|东方日升/;
 const RE_NOISE = /ETF|份额|盘中|涨停|跌停|股价|行情|评级|研报|股吧|期货|指数|招聘|持仓|重仓|成交额|换手|估值锚点|月销|销量|锁单|SUV|早参|晚报|速览|盘点|直播|风电场|涨\d|跌\d|主力资金|净买入|净卖出|龙虎榜|融资余额|增仓|减仓|资金流向|资金净/;
+// 强信号词：出现即为「值得细读」的编辑级稿件
+const RE_HOT = /重磅|独家|首次|首个|突破|爆发|刷新|创纪录|里程碑|历史新高|全面|落地|开闸|规模最大|全球最大|国家级|千亿|百亿|多家|密集|超预期/;
+// 标题金额换算成「亿元」，用于热度打分
+function amountYi(title) {
+  const t = String(title || '');
+  let best = 0;
+  const re = /(\d+(?:\.\d+)?)\s*(亿|万)(?:元|美元|港元)?/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const v = Number(m[1]);
+    if (!Number.isFinite(v)) continue;
+    const yi = m[2] === '亿' ? v : v / 10000;
+    if (yi > best) best = yi;
+  }
+  return best;
+}
 const RE_NONWORD = /[^\u4e00-\u9fa5A-Za-z0-9]/g;
 
 const caches = new Map();        // days -> { payload, at }
@@ -521,13 +537,12 @@ function selectItems(raw, days) {
       let inter = 0;
       for (const k of bg) if (s.bg.has(k)) inter++;
       const base = Math.min(bg.size, s.bg.size);
-      if (base > 0 && inter / base >= 0.72) { dup = true; break; }
+      if (base > 0 && inter / base >= 0.72) { dup = true; s.row.srcCount = (s.row.srcCount || 1) + 1; break; }
     }
     if (dup) continue;
 
     seen.add(key);
-    seenTxt.push({ len: clean.length, bg });
-    rows.push({
+    const row = {
       title: clean,
       link: it.link,
       source: it.source,
@@ -536,8 +551,25 @@ function selectItems(raw, days) {
       ts: ms,
       cat: classify(clean),
       via: it.via || 'news',
+      srcCount: 1,
       query: it.query
-    });
+    };
+    seenTxt.push({ len: clean.length, bg, row });
+    rows.push(row);
+  }
+  // 热度：多源命中 + 金额体量 + 强信号词 + 政策/资本类，红标给「值得细读」的条目
+  for (const r of rows) {
+    let h = 0;
+    if ((r.srcCount || 1) >= 3) h += 3;
+    else if ((r.srcCount || 1) === 2) h += 2;
+    const yi = amountYi(r.title);
+    if (yi >= 10) h += 2;
+    else if (yi >= 1) h += 1;
+    if (RE_HOT.test(r.title)) h += 1;
+    if (r.cat === 'cap' || r.cat === 'policy') h += 1;
+    if (r.via === 'wechat' || r.via === 'deep') h += 1;
+    r.heat = h;
+    r.hot = h >= 3;
   }
   rows.sort((a, b) => b.ts - a.ts);
   // 控制首屏体积，保留最新 260 条；公众号文章（质量最高）不因条数上限被裁掉
