@@ -274,7 +274,8 @@ let filterCat = "all", keyword = "";
 let sortMode = "time";          // time | amount
 try{ const sv = localStorage.getItem("ess_sort_mode"); if(sv==="amount"||sv==="time") sortMode = sv; }catch(e){}
 try{ const qp = new URLSearchParams(document.location.search).get("sort"); if(qp==="amount"||qp==="time") sortMode = qp; }catch(e){}
-let live = false, autoOn = true, countdown = 60;
+let live = false, autoOn = true, countdown = 1800;
+const REFRESH_SEC = 1800;   // 自动刷新间隔：30 分钟
 let lastErrorAt = 0;
 const FILE_MODE = document.location.protocol === "file:";
 
@@ -607,8 +608,9 @@ function tick(){
   if(FILE_MODE){ document.getElementById("cd").textContent = "—"; return; }
   if(!autoOn){ document.getElementById("cd").textContent = "已关闭"; return; }
   countdown--;
-  if(countdown<=0){ countdown = 60; loadLive(true); }
-  document.getElementById("cd").textContent = countdown + "s";
+  if(countdown<=0){ countdown = REFRESH_SEC; loadLive(true); }
+  const mm = Math.floor(countdown/60), ss = String(countdown%60).padStart(2,"0");
+  document.getElementById("cd").textContent = mm + ":" + ss;
 }
 
 // 动态主线卡片点击后跳到对应分类
@@ -639,13 +641,13 @@ document.getElementById("q").addEventListener("input", e=>{
 });
 document.getElementById("btn").addEventListener("click", ()=>loadLive(false, true));
 document.getElementById("win").addEventListener("change", ()=>{
-  countdown = 60;
+  countdown = REFRESH_SEC;
   render();               // 先按新时窗本地重算，再拉取
   loadLive(false);
 });
 document.getElementById("autoOn").addEventListener("change", e=>{
   autoOn = e.target.checked;
-  countdown = 60;
+  countdown = REFRESH_SEC;
   if(autoOn && live) loadLive(true);
 });
 
