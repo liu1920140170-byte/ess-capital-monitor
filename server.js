@@ -64,10 +64,12 @@ const WX_QUERIES = [
   ['wx_inv', '储能 增资 入股'],
   ['wx_equity', '储能 股权 转让'],
   ['wx_coop', '储能 签约 合作'],
+  ['wx_newfund', '新能源 产业基金 设立'],
   ['wx_bat', '锂电 并购 收购'],
-  ['wx_newfund', '新能源 产业基金']
+  ['wx_oversea', '储能 出海 投资'],
+  ['wx_sovereign', '主权基金 新能源']
 ].map(([id, t]) => ({ id, t }));
-const WX_GAP_MS = 3000;                        // 搜狗对高频请求很敏感，查询间隔 3 秒
+const WX_GAP_MS = 4000;                        // 搜狗对高频请求很敏感，查询间隔 4 秒
 const WX_CACHE_MS = 30 * 60 * 1000;            // 公众号结果复用 30 分钟
 const WX_BLOCK_BACKOFF_MS = 45 * 60 * 1000;    // 触发验证码后退避 45 分钟
 const WX_CACHE_FILE = path.join(ROOT, 'wx_cache.json');
