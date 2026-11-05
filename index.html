@@ -170,7 +170,8 @@
     <div class="tabs" id="tabs"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <label class="auto" title="只显示微信公众号文章（质量更高、有完整分析）"><input type="checkbox" id="wxOnly"><span id="wxOnlyTxt">只看公众号</span></label>
-      <div class="sortseg" id="sortSeg" title="切换时间轴排序方式">
+      <div class="sortseg" id="sortSeg" title="切换排序方式">
+        <button type="button" class="seg" data-sort="quality">按质量</button>
         <button type="button" class="seg" data-sort="time">按时间</button>
         <button type="button" class="seg" data-sort="amount">按金额</button>
       </div>
@@ -183,8 +184,8 @@
   <footer>
     <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 30 分钟自动刷新（右上角显示倒计时），手动刷新会强制重抓；上游结果缓存 30 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
-    <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；同一条事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，非公众号条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
-    <div><b>数据源</b>：新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ 微信公众号（带「公众号」标记）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
+    <div><b>展示逻辑</b>：默认「按质量」排序——微信公众号原文优先，其次新浪/东财直达快讯，最后 Google 聚合转载，同级按时间倒序；也可切到「按时间 / 按金额」，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组；同一事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，其余条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
+    <div><b>数据源</b>：微信公众号（带「公众号」标记，云端后台每 40 秒 1 个检索式慢速累积）+ 新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停 20 分钟并保留已抓到的结果。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -284,9 +285,9 @@ let items = EMBEDDED.items.map(x => Object.assign({}, x, {_src:"snapshot"}));
 let meta = {fetchedAt: EMBEDDED.fetchedAt, window: EMBEDDED.window, kind:"snapshot"};
 let filterCat = "all", keyword = "";
 let wxOnly = false;             // 只看微信公众号文章
-let sortMode = "time";          // time | amount
-try{ const sv = localStorage.getItem("ess_sort_mode"); if(sv==="amount"||sv==="time") sortMode = sv; }catch(e){}
-try{ const qp = new URLSearchParams(document.location.search).get("sort"); if(qp==="amount"||qp==="time") sortMode = qp; }catch(e){}
+let sortMode = "quality";       // quality | time | amount
+try{ const sv = localStorage.getItem("ess_sort_mode"); if(sv==="amount"||sv==="time"||sv==="quality") sortMode = sv; }catch(e){}
+try{ const qp = new URLSearchParams(document.location.search).get("sort"); if(qp==="amount"||qp==="time"||qp==="quality") sortMode = qp; }catch(e){}
 let live = false, autoOn = true, countdown = 1800;
 const REFRESH_SEC = 1800;   // 自动刷新间隔：30 分钟
 let lastErrorAt = 0;
@@ -305,6 +306,8 @@ function noteFor(it){
 function keyOf(t){return String(t||"").replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,"").slice(0,40);}
 const CAT_RANK = {cap:0,policy:1,tech:2,industry:3,fund:4,mna:5,jv:6,ipo:7,risk:8,other:9};
 function catRank(c){ return CAT_RANK[c]===undefined ? 6 : CAT_RANK[c]; }
+// 来源质量：微信公众号原文 > 新浪/东财直达快讯 > Google 聚合转载
+function viaRank(v){ return v==="wechat" ? 0 : (v==="sina"||v==="em") ? 1 : 2; }
 
 /* ---------- 时间 / 时窗 ---------- */
 function tsOf(x){
@@ -459,7 +462,7 @@ function wxTopicPanel(){
   const meta2 = (meta.wechatCount ? `本轮云端抓取 ${meta.wechatCount} 条` : "云端抓取本轮未命中公众号文章");
   return `<div class="wxpanel">
     <h3>微信公众号检索入口<span class="n">${meta2}</span></h3>
-    <p class="wxtip">云端服务器 IP 会被搜狗微信搜索拦截验证码，但你自己网络不受影响。点下面任一主题，直接打开公众号文章搜索结果，按时间排序挑选原文。</p>
+    <p class="wxtip">云端已改为「公众号优先」：后台每 40 秒只发 1 个检索式、持续累积公众号文章，命中后会以「公众号」标记进入列表。服务器 IP 偶尔会被搜狗拦验证码，此时用你自己网络点下面的主题入口即可直接读到公众号原文。</p>
     <div class="wxgrid">${WX_TOPICS.map(([label,q])=>
       `<a class="wxlink" href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(q)}" target="_blank" rel="noopener noreferrer">${label}<span>↗</span></a>`
     ).join("")}</div>
@@ -502,6 +505,9 @@ function render(){
   if(sortMode === "amount"){
     // 金额优先：标题金额线索从高到低；无金额的排在后面，再按时间倒序
     list.sort((a,b)=> (amountOf(b)-amountOf(a)) || (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
+  } else if(sortMode === "quality"){
+    // 质量优先：公众号 → 直达快讯 → 聚合转载，同级按时间倒序
+    list.sort((a,b)=> (viaRank(a.via)-viaRank(b.via)) || (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
   } else {
     list.sort((a,b)=> (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
   }
@@ -518,9 +524,14 @@ function render(){
   }
   let html = "", curDay = "";
   const byAmount = (sortMode === "amount");
+  const byQuality = (sortMode === "quality");
   const withAmt = byAmount ? list.filter(i=>amountOf(i) > 0).length : list.length;
   if(byAmount){
     html += `<div class="day"><span class="d">金额榜</span><span class="w">标题金额线索由高到低</span><span class="ln"></span><span class="cnt">${withAmt}/${list.length} 条含金额</span></div>`;
+  }
+  if(byQuality){
+    const wxN = list.filter(i=>i.via==="wechat").length;
+    html += `<div class="day"><span class="d">质量优先</span><span class="w">公众号原文 → 直达快讯 → 聚合转载</span><span class="ln"></span><span class="cnt">公众号 ${wxN} 条 / 共 ${list.length} 条</span></div>`;
   }
   let noAmtStarted = false;
   list.forEach((it,idx)=>{
@@ -530,7 +541,7 @@ function render(){
       noAmtStarted = true;
       html += `<div class="day"><span class="d">未披露金额</span><span class="w">按时间倒序</span><span class="ln"></span><span class="cnt">${list.length-withAmt} 条</span></div>`;
     }
-    if(!byAmount && day !== curDay){
+    if(!byAmount && !byQuality && day !== curDay){
       curDay = day;
       const d = t ? new Date(t) : null;
       const now = new Date();
@@ -706,6 +717,8 @@ if(!FILE_MODE){ loadLive(true); }
 else { setStatus("", "内置快照 · 本地文件"); document.getElementById("cd").textContent = "—"; }
 setInterval(tick, 1000);
 setInterval(updateFreshness, 10000);
+// 保活：页面开着时每 8 分钟发一次轻量请求，避免云端 15 分钟休眠中断公众号后台累积
+setInterval(()=>{ if(document.hidden) return; fetch("/api/health", {cache:"no-store"}).catch(()=>{}); }, 8 * 60 * 1000);
 </script>
 </body>
 </html>
