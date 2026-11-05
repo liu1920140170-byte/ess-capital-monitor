@@ -56,9 +56,27 @@ const QUERIES = [
   ['ma5', '储能 项目公司 股权']
 ].map(([id, t]) => ({ id, t }));
 
+// 微信公众号文章检索（搜狗微信搜索，无需登录；覆盖 Google News 不收录的公众号稿件）
+const WX_QUERIES = [
+  ['wx_acq', '储能 并购'],
+  ['wx_acq2', '储能 收购'],
+  ['wx_fund', '储能 基金'],
+  ['wx_inv', '储能 增资 入股'],
+  ['wx_equity', '储能 股权 转让'],
+  ['wx_coop', '储能 签约 合作'],
+  ['wx_bat', '锂电 并购 收购'],
+  ['wx_newfund', '新能源 产业基金']
+].map(([id, t]) => ({ id, t }));
+const WX_GAP_MS = 3000;                        // 搜狗对高频请求很敏感，查询间隔 3 秒
+const WX_CACHE_MS = 30 * 60 * 1000;            // 公众号结果复用 30 分钟
+const WX_BLOCK_BACKOFF_MS = 45 * 60 * 1000;    // 触发验证码后退避 45 分钟
+const WX_CACHE_FILE = path.join(ROOT, 'wx_cache.json');
+
 const RE_DOMAIN = /储能|电池|锂电|钠电|钠离子|电芯|光储|逆变器|PCS|充电桩|换电|正极|负极|电解液|隔膜|硬碳|炭材料|新能源|光伏|风电|虚拟电厂/;
 const RE_COMPANY = /宁德时代|比亚迪|亿纬|国轩|中创新航|欣旺达|海辰|鹏辉|南都电源|派能|沃太|艾罗|德业|锦浪|固德威|科华|上能电气|盛弘|禾望|英维克|申菱|同飞|高澜|阳光电源|天合光能|阿特斯|晶科|隆基|通威|协鑫|天能|超威|南孚|珠海冠宇|力神|瑞浦|兰钧|蜂巢|远景|双一力|精控|许继|平高|四方|南网科技/;
 const RE_CAPITAL = /并购|收购|基金|合资|增资|入股|参股|股权|定增|重组|重整|融资|IPO|招股|上市|REITs|出资|转让|受让|易主|募资|战投|战略投资|设立|募集|估值|破产|出清|停产|清算|停牌/;
+// 公众号稿件常用“签约/合作”表达资本动作，单独放宽（仅对公众号条目生效）
+const RE_COOP = /签约|战略合作|共同投资|共建|联手|框架协议|投资协议|达成合作|揭牌|项目落地|投建|合作基金|投资局|主权基金/;
 const RE_NOISE = /ETF|份额|盘中|涨停|跌停|股价|行情|评级|研报|股吧|期货|指数|招聘|招标|中标|持仓|重仓|成交额|换手|估值锚点|月销|销量|锁单|SUV|早参|晚报|速览|盘点|直播|风电场|涨\d|跌\d/;
 const RE_NONWORD = /[^\u4e00-\u9fa5A-Za-z0-9]/g;
 
@@ -66,6 +84,10 @@ const caches = new Map();        // days -> { payload, at }
 const refreshes = new Map();     // days -> Promise
 let lastAttemptAt = 0;
 let lastError = '';
+let lastWechat = { ok: false, raw: 0, error: '', at: 0 };
+let wxCache = { at: 0, raw: [] };
+let wxInflight = null;
+let wxBackoffUntil = 0;
 const startedAt = Date.now();
 
 /* ---------------- 工具函数 ---------------- */
@@ -99,18 +121,21 @@ function tagText(block, name) {
   return m ? decodeEntities(m[1]).trim() : '';
 }
 
-function httpGet(url, redirects = 0) {
+function httpGet(url, redirects = 0, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
-      headers: {
+      headers: Object.assign({
         'User-Agent': UA,
         'Accept-Language': 'zh-CN,zh;q=0.9'
-      }
+      }, extraHeaders)
     }, res => {
       const code = res.statusCode || 0;
       if ([301, 302, 303, 307, 308].includes(code) && res.headers.location && redirects < 3) {
         res.resume();
-        resolve(httpGet(new URL(res.headers.location, url).toString(), redirects + 1));
+        // 搜狗常把跳转写成 http://，而这里用的是 https 模块，统一升级为 https
+        const next = new URL(res.headers.location, url);
+        if (next.protocol === 'http:') next.protocol = 'https:';
+        resolve(httpGet(next.toString(), redirects + 1, extraHeaders));
         return;
       }
       if (code !== 200) {
@@ -179,6 +204,108 @@ async function fetchAll(days) {
   return raw;
 }
 
+/* ---------------- 公众号（搜狗微信搜索） ---------------- */
+
+function parseSogou(html, queryId) {
+  const out = [];
+  const blocks = html.split(/<li id="sogou_vr_/i).slice(1);
+  for (const b of blocks) {
+    const tm = b.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+    if (!tm) continue;
+    const am = tm[1].match(/href="([^"]+)"/i);
+    const title = decodeEntities(tm[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+    const accM = b.match(/<span class="all-time-y2">([\s\S]*?)<\/span>/i);
+    const source = accM ? decodeEntities(accM[1].replace(/<[^>]+>/g, '')).trim() : '';
+    const tsM = b.match(/timeConvert\('(\d+)'\)/);
+    if (!title || !am || !tsM) continue;
+    let link = decodeEntities(am[1]);
+    if (link.startsWith('/')) link = 'https://weixin.sogou.com' + link;
+    out.push({
+      title,
+      link,
+      source: source || '微信公众号',
+      ts: Number(tsM[1]) * 1000,
+      via: 'wechat',
+      query: queryId
+    });
+  }
+  return out;
+}
+
+function loadWxCache() {
+  try {
+    if (!fs.existsSync(WX_CACHE_FILE)) return;
+    const o = JSON.parse(fs.readFileSync(WX_CACHE_FILE, 'utf8'));
+    if (o && Array.isArray(o.raw) && o.raw.length) {
+      wxCache = { at: Number(o.at) || 0, raw: o.raw };
+      console.log(`[wechat] 载入本地缓存 ${o.raw.length} 条`);
+    }
+  } catch (e) {
+    console.warn(`[wechat] 缓存读取失败：${e.message}`);
+  }
+}
+
+function saveWxCache() {
+  try {
+    fs.writeFileSync(WX_CACHE_FILE, JSON.stringify(wxCache));
+  } catch (e) {
+    console.warn(`[wechat] 缓存写入失败：${e.message}`);
+  }
+}
+
+async function fetchWechat() {
+  // 两个时窗会连续刷新，公众号结果 30 分钟内复用；被验证码拦截时退避 45 分钟
+  if (wxCache.raw.length && Date.now() - wxCache.at < WX_CACHE_MS) return wxCache.raw;
+  if (Date.now() < wxBackoffUntil) return wxCache.raw;
+  if (wxInflight) return wxInflight;
+  wxInflight = fetchWechatOnce().finally(() => { wxInflight = null; });
+  return wxInflight;
+}
+
+async function fetchWechatOnce() {
+  const out = [];
+  const t0 = Date.now();
+  let okCount = 0;
+  let errMsg = '';
+  let blocked = false;
+  for (const q of WX_QUERIES) {
+    if (Date.now() - t0 > 60000) break;
+    const url = 'https://weixin.sogou.com/weixin?type=2&ie=utf8&query=' + encodeURIComponent(q.t);
+    let html = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        html = await httpGet(url, 0, { Referer: 'https://weixin.sogou.com/', 'Accept-Encoding': 'identity' });
+        break;
+      } catch (e) {
+        errMsg = e.message;
+        if (attempt === 2 || /timeout/i.test(e.message)) break;
+        await sleep(800);
+      }
+    }
+    if (html) {
+      if (/antispider|请输入验证码|访问过于频繁/.test(html)) { errMsg = '触发验证码'; blocked = true; break; }
+      okCount++;
+      try {
+        out.push(...parseSogou(html, q.id));
+      } catch (e) {
+        console.warn(`[wechat] parse ${q.id} failed: ${e.message}`);
+      }
+    }
+    await sleep(WX_GAP_MS);
+  }
+  if (blocked) {
+    wxBackoffUntil = Date.now() + WX_BLOCK_BACKOFF_MS;
+    console.warn(`[wechat] 触发验证码，${Math.round(WX_BLOCK_BACKOFF_MS / 60000)} 分钟后重试；沿用上次缓存 ${wxCache.raw.length} 条`);
+  }
+  lastWechat = { ok: okCount > 0, raw: out.length, error: errMsg, at: Date.now() };
+  if (out.length) {
+    wxCache = { at: Date.now(), raw: out };
+    saveWxCache();
+  }
+  console.log(`[wechat] queries ok=${okCount}/${WX_QUERIES.length} raw=${out.length}${errMsg ? ' err=' + errMsg : ''}`);
+  return out.length ? out : wxCache.raw;
+}
+
 function classify(text) {
   if (/基金|私募|认缴|LP|合伙企业/.test(text)) return 'fund';
   if (/IPO|招股|上市|REITs|定增|募资|递表|聆讯|资产证券化|首次公开发行/.test(text)) return 'ipo';
@@ -201,12 +328,15 @@ function selectItems(raw, days) {
   const seenTxt = [];
   const rows = [];
   for (const it of raw) {
-    const title = String(it.title || '');
+    const title = String(it.title || '').trim();
+    const isWx = it.via === 'wechat';
+    if (title.length < 8) continue;
     if (RE_NOISE.test(title)) continue;
     if (!RE_DOMAIN.test(title) && !RE_COMPANY.test(title)) continue;
-    if (!RE_CAPITAL.test(title)) continue;
-    const ms = Date.parse(it.pubDate);
+    if (isWx ? (!RE_CAPITAL.test(title) && !RE_COOP.test(title)) : !RE_CAPITAL.test(title)) continue;
+    const ms = Number.isFinite(it.ts) ? it.ts : Date.parse(it.pubDate);
     if (!Number.isFinite(ms) || ms < from) continue;
+    if (ms > Date.now() + 3600 * 1000) continue;   // 过滤公众号搜索结果里的异常未来时间
 
     let clean = title
       .replace(/\s*[-|–]\s*[^-|–]{1,24}$/, '')
@@ -239,6 +369,7 @@ function selectItems(raw, days) {
       date: cnParts(ms).date,
       ts: ms,
       cat: classify(clean),
+      via: isWx ? 'wechat' : 'news',
       query: it.query
     });
   }
@@ -287,7 +418,9 @@ function ensureRefresh(days) {
 
 async function runRefresh(days) {
   lastAttemptAt = Date.now();
-  const raw = await fetchAll(days);
+  // Google News 与公众号并行抓取，互不阻塞
+  const [newsRaw, wxRaw] = await Promise.all([fetchAll(days), fetchWechat()]);
+  const raw = newsRaw.concat(wxRaw);
   const items = selectItems(raw, days);
   if (!items.length) {
     lastError = `上游返回 ${raw.length} 条，过滤后为 0`;
@@ -296,6 +429,7 @@ async function runRefresh(days) {
   }
   const counts = {};
   for (const i of items) counts[i.cat] = (counts[i.cat] || 0) + 1;
+  const wechatCount = items.filter(i => i.via === 'wechat').length;
   const payload = {
     ok: true,
     fetchedAt: cnParts(Date.now()).full,
@@ -303,11 +437,12 @@ async function runRefresh(days) {
     rawCount: raw.length,
     count: items.length,
     counts,
+    wechat: { ok: lastWechat.ok, raw: lastWechat.raw, count: wechatCount, error: lastWechat.error || '' },
     items
   };
   caches.set(days, { payload, at: Date.now() });
   lastError = '';
-  console.log(`[refresh] days=${days} ok: ${items.length} items / raw ${raw.length}`);
+  console.log(`[refresh] days=${days} ok: ${items.length} items (公众号 ${wechatCount}) / raw ${raw.length}`);
 }
 
 /* ---------------- HTTP 服务 ---------------- */
@@ -381,7 +516,8 @@ const server = http.createServer((req, res) => {
       uptimeSec: Math.round((Date.now() - startedAt) / 1000),
       cache: c ? { fetchedAt: c.payload.fetchedAt, count: c.payload.count, ageSec: Math.round((Date.now() - c.at) / 1000) } : null,
       refreshing: refreshes.size > 0,
-      lastError: lastError || null
+      lastError: lastError || null,
+      wechat: { ok: lastWechat.ok, raw: lastWechat.raw, error: lastWechat.error || null }
     });
     return;
   }
@@ -398,6 +534,7 @@ const server = http.createServer((req, res) => {
 });
 
 if (require.main === module) {
+  loadWxCache();
   server.listen(PORT, HOST, () => {
     console.log(`ESS dashboard listening on http://${HOST}:${PORT}`);
     // 启动后在后台预热（不阻塞首个请求）
@@ -410,4 +547,4 @@ if (require.main === module) {
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
 
-module.exports = { parseRss, selectItems, classify, bigrams, decodeEntities, cnParts };
+module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat };

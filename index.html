@@ -105,6 +105,7 @@
   .chip{font-size:10.5px;padding:2.5px 8px;border-radius:6px;border:1px solid;letter-spacing:.5px}
   .meta{font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums}
   .mini{font-size:9.5px;color:var(--dim2);border:1px solid #233448;border-radius:5px;padding:1.5px 5px}
+  .mini.wx{color:#34d399;border-color:#34d39955;background:#34d39911}
   .card h4{margin:0 0 6px;font-size:14.5px;line-height:1.5;font-weight:600}
   .card:hover h4{color:#fff}
   .note{font-size:12.2px;line-height:1.65;color:#9db0ca;margin:0}
@@ -184,6 +185,7 @@
     <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，25 组检索式（基金/并购/合资/增资/股权转让/IPO 等）×「行业词 + 资本运作词」双重过滤 × 标题归一化 + 二元组近似去重。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 60 秒自动刷新，手动刷新会等待最新一轮抓取；上游结果缓存 10 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
     <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类、KPI、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
+    <div><b>数据源</b>：Google News RSS 中文频道 + 微信公众号（搜狗微信搜索，带「公众号」标记）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -514,6 +516,7 @@ function render(){
     const note = noteFor(it);
     const tags = [];
     if(live && it._src==="snapshot") tags.push(`<span class="mini" title="该条来自页面内置快照，实时源本轮未覆盖到">预置</span>`);
+    if(it.via==="wechat") tags.push(`<span class="mini wx" title="来源为微信公众号（搜狗微信搜索），点击下方原文跳转">公众号</span>`);
     if(it._new) tags.push(`<span class="new">NEW</span>`);
     const amt = byAmount ? amountText(it) : "";
     const amtTag = byAmount
@@ -551,7 +554,7 @@ function updateFreshness(){
   if(!live) return;
   const vis = visibleItems();
   const nNew = vis.filter(i=>i._new).length;
-  const extra = nNew ? ` · +${nNew} 新` : "";
+  const extra = (nNew ? ` · +${nNew} 新` : "") + (meta.wechatCount ? ` · 公众号 ${meta.wechatCount} 条` : "");
   if(Date.now() - lastErrorAt < 120e3){ setStatus("fail", "刷新失败/超时 · 保留上次结果"); return; }
   const age = Date.now() - tsOf({pubDate: meta.fetchedAt});
   if(age > 90*60e3) setStatus("stale", `缓存数据 · ${vis.length} 条${extra}`);
@@ -590,7 +593,7 @@ async function loadLive(silent, force){
     // 实时源没覆盖到、但仍在当前时窗内的内置条目，继续保留（标记“预置”）
     const keepOld = items.filter(i=> i._src==="snapshot" && inWindow(i) && !fresh.some(f=>keyOf(f.title)===keyOf(i.title)));
     items = fresh.concat(keepOld);
-    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live"};
+    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0};
     live = true;
     lastErrorAt = 0;
     updateFreshness();
