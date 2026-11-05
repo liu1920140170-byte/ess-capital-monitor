@@ -1,0 +1,13 @@
+# Render 部署蓝图：连接 GitHub 仓库后自动创建 Web Service
+services:
+  - type: web
+    name: ess-capital-monitor
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.1

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>储能产业链 · 资本运作实时看板</title>
+<style>
+  :root{
+    --bg:#080d18; --panel:#111a2b; --line:#1e2b40;
+    --txt:#e8eefc; --dim:#8fa2bf; --dim2:#5d6f8c;
+    --gold:#f0b429; --cyan:#2dd4ed; --violet:#a78bfa; --green:#34d399; --red:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 600px at 15% -10%, #16305a55 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 0%, #0f3b4a44 0%, transparent 55%),
+      var(--bg);
+    color:var(--txt); font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  code{font-family:Consolas,monospace;font-size:11px;color:#8fb7d8;background:#0e1a29;padding:1px 5px;border-radius:4px}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 20px 60px}
+
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;gap:14px;align-items:center}
+  .logo{
+    width:46px;height:46px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(145deg,#1b3b6f,#0d2b4a);border:1px solid #2b4f7d;
+    display:grid;place-items:center;font-weight:700;letter-spacing:.5px;color:var(--cyan);font-size:13px;
+    box-shadow:0 0 22px #2dd4ed22 inset;
+  }
+  h1{font-size:21px;margin:0 0 5px;letter-spacing:.4px;font-weight:650}
+  .sub{margin:0;color:var(--dim);font-size:12.5px}
+  .ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:6px}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);
+    background:#0f1a2b;border:1px solid var(--line);padding:6px 11px;border-radius:20px}
+  .status i{width:7px;height:7px;border-radius:50%;background:var(--dim2);display:inline-block}
+  .status.live i{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .status.loading i{background:var(--gold);animation:pulse 1s infinite}
+  .status.fail i{background:var(--red)}
+  @keyframes pulse{50%{opacity:.25}}
+  .stamp{font-size:11.5px;color:var(--dim2);font-variant-numeric:tabular-nums}
+  button{
+    font:inherit;font-size:12.5px;color:var(--txt);background:#14243a;border:1px solid #26405f;
+    padding:7px 14px;border-radius:8px;cursor:pointer;transition:.18s;
+  }
+  button:hover{background:#1b3352;border-color:#3a5f8a}
+  button:active{transform:translateY(1px)}
+  .auto{font-size:11.5px;color:var(--dim);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .auto input{accent-color:#2dd4ed}
+  select{font:inherit;font-size:12px;background:#14243a;color:var(--txt);border:1px solid #26405f;border-radius:8px;padding:6px 8px}
+
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:22px 0 6px}
+  .kpi{background:linear-gradient(160deg,#131e31,#0e1727);border:1px solid var(--line);border-radius:14px;padding:14px 15px;position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,#2a3b52)}
+  .kpi b{display:block;font-size:25px;line-height:1.15;font-variant-numeric:tabular-nums;color:#fff}
+  .kpi span{font-size:11.5px;color:var(--dim)}
+  .kpi small{display:block;margin-top:4px;font-size:10.5px;color:var(--dim2)}
+
+  h2{font-size:14px;letter-spacing:.6px;color:#cfe0f5;margin:26px 0 12px;font-weight:600}
+  h2 .en{color:var(--dim2);font-weight:400;font-size:11px;margin-left:8px;letter-spacing:1px}
+  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .ins{background:#0f1826;border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .ins h3{margin:0 0 8px;font-size:13px;color:#fff;display:flex;gap:7px;align-items:center}
+  .ins p{margin:0;font-size:12.3px;line-height:1.65;color:#b9c8de}
+  .ins .num{color:var(--cyan);font-variant-numeric:tabular-nums}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:28px 0 14px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{padding:7px 13px;border-radius:9px;font-size:12.5px;color:var(--dim);border:1px solid transparent;cursor:pointer;transition:.18s;background:#0d1523}
+  .tab:hover{color:#dbe8ff;background:#131f31}
+  .tab.on{background:#17263c;color:#fff;border-color:#33507a}
+  .tab .n{color:var(--dim2);font-size:11px;margin-left:5px}
+  .sortseg{display:flex;gap:2px;padding:2px;background:#0d1523;border:1px solid #22344c;border-radius:9px}
+  .seg{font:inherit;font-size:12px;color:var(--dim);background:transparent;border:0;border-radius:7px;
+    padding:6px 11px;cursor:pointer;transition:.18s;white-space:nowrap}
+  .seg:hover{color:#dbe8ff;background:#131f31}
+  .seg.on{background:#1b3050;color:#fff}
+  .seg:focus{outline:none}
+  .seg:focus-visible{outline:1px solid #3a5f8a;outline-offset:1px}
+  .amt-chip{font-size:10.5px;color:var(--gold);border:1px solid #f0b42955;background:#f0b42911;
+    border-radius:5px;padding:1.5px 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  input[type=search]{
+    font:inherit;font-size:12.5px;color:var(--txt);background:#0d1523;border:1px solid #22344c;
+    border-radius:9px;padding:8px 12px;min-width:230px;outline:none
+  }
+  input[type=search]::placeholder{color:#5b6c86}
+  input[type=search]:focus{border-color:#3a5f8a}
+
+  .day{margin:22px 0 10px;display:flex;align-items:center;gap:10px}
+  .day .d{font-size:12.5px;color:#cfe0f5;font-weight:600}
+  .day .w{font-size:11px;color:var(--dim2)}
+  .day .ln{flex:1;height:1px;background:linear-gradient(90deg,#22344c,transparent)}
+  .day .cnt{font-size:11px;color:var(--dim2)}
+  .card{
+    background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid var(--line);border-left:3px solid var(--c,#2a3b52);
+    border-radius:11px;padding:13px 16px;margin-bottom:10px;transition:.18s;
+    animation:fadeIn .35s ease both;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card:hover{border-color:#33507a;border-left-color:var(--c);transform:translateX(2px);background:#121e30}
+  .crow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+  .chip{font-size:10.5px;padding:2.5px 8px;border-radius:6px;border:1px solid;letter-spacing:.5px}
+  .meta{font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums}
+  .mini{font-size:9.5px;color:var(--dim2);border:1px solid #233448;border-radius:5px;padding:1.5px 5px}
+  .card h4{margin:0 0 6px;font-size:14.5px;line-height:1.5;font-weight:600}
+  .card:hover h4{color:#fff}
+  .note{font-size:12.2px;line-height:1.65;color:#9db0ca;margin:0}
+  .note b{color:#cfe0f5;font-weight:500}
+  .src{font-size:11px;color:var(--dim2);margin-top:8px}
+  .src a{color:#5aa7d4}
+  .src a:hover{text-decoration:underline}
+  .empty{padding:40px 0;text-align:center;color:var(--dim2);font-size:13px}
+  .empty button{margin-top:12px}
+
+  .kpi{cursor:pointer;transition:.18s}
+  .kpi:hover{border-color:#33507a;transform:translateY(-1px)}
+  .kpi.on{border-color:#3a5f8a;background:#13233a}
+  .ins{cursor:pointer;transition:.18s}
+  .ins:hover{border-color:#33507a;background:#122033;transform:translateY(-1px)}
+  .ins h3 .n{font-size:10.5px;color:var(--dim2);font-weight:400;margin-left:auto}
+  .tk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .tk li{font-size:12.3px;line-height:1.55;color:#cfdcee}
+  .tk-amt{margin-top:9px;padding-top:8px;border-top:1px dashed #22344c;font-size:11px;color:var(--dim)}
+  .tk-empty{color:var(--dim2);font-size:12px;margin:0}
+  .amt{font-style:normal;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+  .new{font-size:9.5px;color:#34d399;border:1px solid #34d39955;background:#34d39911;border-radius:5px;padding:1.5px 5px;letter-spacing:.5px}
+  mark{background:#f0b42933;color:#ffe9b0;border-radius:3px;padding:0 2px}
+  .status.stale i{background:var(--gold);box-shadow:0 0 8px #f0b42988}
+
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim2);font-size:11.5px;line-height:1.85}
+  footer b{color:#94a9c6;font-weight:500}
+  @media (max-width:980px){
+    .kpis{grid-template-columns:repeat(3,1fr)} .grid4{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:640px){
+    .kpis{grid-template-columns:repeat(2,1fr)} .grid4{grid-template-columns:1fr}
+    h1{font-size:17px} .wrap{padding:18px 14px 50px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">ESS</div>
+      <div>
+        <h1>储能产业链 · 资本运作实时看板</h1>
+        <p class="sub">设立基金 · 收并购 · 合资/增资入股 · 上市与证券化 —— 滚动窗口追踪</p>
+      </div>
+    </div>
+    <div class="ctrl">
+      <span class="status" id="status"><i></i><span id="statusText">页面内置快照</span></span>
+      <span class="stamp" id="stamp">—</span>
+      <select id="win">
+        <option value="2">近48小时</option>
+        <option value="3" selected>近72小时</option>
+      </select>
+      <label class="auto"><input type="checkbox" id="autoOn" checked>自动刷新 <span id="cd">—</span></label>
+      <button id="btn">立即刷新</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <h2>动态主线<span class="en">AUTO BRIEF · 按当前时窗自动生成</span></h2>
+  <section class="grid4" id="takeaways"></section>
+
+  <div class="toolbar">
+    <div class="tabs" id="tabs"></div>
+    <div class="sortseg" id="sortSeg" title="切换时间轴排序方式">
+      <button type="button" class="seg" data-sort="time">按时间</button>
+      <button type="button" class="seg" data-sort="amount">按金额</button>
+    </div>
+    <input type="search" id="q" placeholder="搜索公司 / 关键词（如 中集、REITs、增资）">
+  </div>
+
+  <main id="list"></main>
+
+  <footer>
+    <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，25 组检索式（基金/并购/合资/增资/股权转让/IPO 等）×「行业词 + 资本运作词」双重过滤 × 标题归一化 + 二元组近似去重。</div>
+    <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 60 秒自动刷新，手动刷新会等待最新一轮抓取；上游结果缓存 10 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
+    <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类、KPI、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
+    <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
+    <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
+  </footer>
+</div>
+
+<script>
+/*__EMBEDDED_START__*/
+const EMBEDDED = {
+  fetchedAt: "2026-11-02 19:40",
+  window: "近72小时（10/30 盘后 – 11/02）",
+  items: [
+    {title:"易主仅两月，16年储能龙头破产！", source:"海融网", pubDate:"2026-11-02 16:47", cat:"risk",
+     note:"<b>待核实</b>：原文标题未点名具体公司。若为创业板/港股上市储能标的，需立即排查债权、担保与客户资产处置；同时也是“低价资产接盘”线索。",
+     link:"https://news.google.com/rss/articles/CBMiY0FVX3lxTE5Yc0MtZE1VSi03Mk5jSW1LMGN4OE5KYU5ZdjFfbVJHSy1ZeWQyV1NKQzV1aWw5ZHZYU1dubWNVSGFNVENhWERIUklDYldmc0FNLVJ6d1ljT2ExZGQyVjJta04tYw?oc=5"},
+    {title:"远信储能开启招股：拟募资6亿 11月9日上市 鼎晖是基石", source:"搜狐网", pubDate:"2026-11-02 16:18", cat:"ipo",
+     note:"港股储能标的进入发行阶段：拟募资约 <b>6 亿港元</b>、<b>11 月 9 日</b>挂牌，鼎晖为基石投资者，被称“储能资产化运营第一股”；是观察储能二级估值锚的关键样本。",
+     link:"https://news.google.com/rss/articles/CBMiiAFBVV95cUxQdlQ4TTUzZ2V1bWZNUEhIRUR2YTJ1cnQ3RllKbzFOamo1cGxUMWF4bHVfSmlLaHdjcXpUWEkxbWltNnRzb1RQb3N6cGptQzRVYUlna1MyNEJhQmdBbnBSY3BwZEJHdFQwY1RjVVBqV3NxSnVSOW9aVklUOGpwcXBITE1nUkxPb3J2?oc=5"},
+    {title:"全球第二跟踪支架企业控股权拟易主，天合光能为何放手？", source:"新京报", pubDate:"2026-11-02 15:29", cat:"mna",
+     note:"与下方深南电A公告为<b>同一笔交易</b>：卖方为天合光能（全球第二跟踪支架业务控股权），买方为跨界进入的深南电A；本篇侧重天合“收缩非核心、聚焦主业”的取舍。",
+     link:"https://news.google.com/rss/articles/CBMiZEFVX3lxTE1JOG54dG5yVm1WYkpwUFhlOWJOaDdZMnpiZFlJVk5PRjBqUzRzN2lnX3huM0RiWEpPc3pnZjJVeTV1bERLVzMtNzQtejVOak5ER3NJdzZrOHY2UmFwcHpkRVpsMnU?oc=5"},
+    {title:"小米17亿元增资欣旺达动力，持股5.34%", source:"新浪网", pubDate:"2026-11-02 12:33", cat:"jv",
+     note:"<b>17 亿元</b>增资、持股 <b>5.34%</b>；此前理想已成第二大股东，阳光电源、天齐锂业亦曾联合增资。整车厂以股权锁定电池产能，车储共用供应链进一步绑定。",
+     link:"https://news.google.com/rss/articles/CBMicEFVX3lxTE82ZFBTVjl0WXZsTmM2YVRhTjcyaDdULW9wTkJpN3BHN3J4dktLR1JwQ3ZjeDVMRUt5Nm9qMTFWWmw4UkRxT09CT0FRN1JKdWI0X3o1S1JHVjVtN1FiZjAyS21IUE1XUFJtcW1PX0FWWXQ?oc=5"},
+    {title:"半导体、AI芯片、储能扎堆港股：新一轮IPO潮在释放什么信号？", source:"证券之星", pubDate:"2026-11-02 12:13", cat:"ipo",
+     note:"行业侧信号：储能与半导体/AI 一同成为港股新股供给主线。对一级市场意味着<b>退出窗口打开</b>，但定价折让与破发风险同步上升。",
+     link:"https://news.google.com/rss/articles/CBMiXkFVX3lxTE5MY21aMjBfSXhsRXEtM1RNTkFyQXFjSzRHMEZyQktOQ2Vmd3pSNWQ1MHFNZktFX2dTUDdWTFR6RFF4eXlKTjFmcHlFTmxxbFlmbWZ6UUY2RFNkMnFqYkE?oc=5"},
+    {title:"山东储能企业股权整合 山东发展新能源集团持股升至79%注册资本1.92亿元", source:"格隆汇", pubDate:"2026-11-02 11:54", cat:"mna",
+     note:"地方国资（山东发展新能源集团）取得单州新型储能科技 <b>79%</b> 股权，标的注册资本 <b>1.92 亿元</b>，并同步调整人事；国资直接持有储能项目公司成为新趋势。",
+     link:"https://news.google.com/rss/articles/CBMiT0FVX3lxTFBzUEhIMGowa2lLM2xwX254cG10cFhGckdjLUI3ZFp1aWI1Uy1HdUpDVkdyU2lvRG1meFVMeHNUUTYycEowbFY5STE4anZIaDQ?oc=5"},
+    {title:"10亿元储能基金落地 中集集团参与发起设立新型储能产业基金", source:"格隆汇", pubDate:"2026-11-02 11:52", cat:"fund",
+     note:"基金认缴规模 <b>10 亿元</b>，中集集团拟出资 <b>2.9883 亿元</b>、与专业机构合作设立；今日盘中一度涨超 5%（叠加三季报营收净利双增）。结构为“产业资本 + 专业 GP”。",
+     link:"https://news.google.com/rss/articles/CBMiT0FVX3lxTFBhdXF0WW9xZ2VCaHdFeHFnd2pRNnZmd1FpcThCeklYNGZwU0s1NWt5RmhodzJ6aFJacTBkTG5rYUxEVk43eVU3YUlaWWlibEk?oc=5"},
+    {title:"智光电气完成支付8.44亿元收购款 智光储能持股比例将升至94.82%", source:"金融界", pubDate:"2026-11-02 11:47", cat:"mna",
+     note:"<b>8.44 亿元</b>收购款支付完毕，对储能子公司持股升至 <b>94.82%</b>；少数股权回收后，储能业务利润与现金流更大比例并入母公司，属“子公司并表强化”典型样本。",
+     link:"https://news.google.com/rss/articles/CBMiZkFVX3lxTFAtZWtCRnE0SDNDUUxLTTFjZDJvS0xaR0RYWEVVdC12dGZnVV9oZk94d3FaejdaZlBHOUltTi1veUVYZEVSN1o3S09IeVJZck1ncTVtSnduX1NMS1ZLWlNfMU9GYlpkUQ?oc=5"},
+    {title:"德国储能先驱Sonnen破产：硬件制造失去竞争力后，15万客户还有多少价值？", source:"搜狐网", pubDate:"2026-11-01 10:46", cat:"risk",
+     note:"欧洲户储鼻祖进入破产程序，<b>15 万</b>存量客户资产待处置；硬件端出清加剧，关注资产/客户池是否被同业低价收购，以及对国内出口企业份额与价格的影响。",
+     link:"https://news.google.com/rss/articles/CBMijwFBVV95cUxNanB1Tk5qYnJhRU1kN20yTXo3TUl1SzZpQmNEclpTTzZyVGwwM1lXNlkwUW5ZQUFYWG9rMGZVRW5VeGhTOUxBcjBoR2o0SmpVS3lmREtncVBMWDNQQzhGdXJXVmVVMU1JX3dIMHY3VkloS29DcFdDQ052Z2ttTTdZV3lxajJUR0MxVXREeHltcw?oc=5"},
+    {title:"欣旺达终止港股上市，动力子公司控制权拱手让人，与车企绑定更深", source:"手机新浪网", pubDate:"2026-10-31 18:36", cat:"ipo",
+     note:"H 股 IPO <b>终止</b>，同时动力子公司引入小米增资并“出表”——用股权换取整车厂深度绑定（此前理想已入股）。关注后续是否重启 A 股/其他融资路径。",
+     link:"https://news.google.com/rss/articles/CBMi5gFBVV95cUxPS1pNSWM1bVpTeXh0VUF1Zzd0OUI3aUFLX1RFSWxVdGJVeUFDQU43cjlwSjNHM3Z0ZWJEaDI4RkI0cDl3aE03NU1wb3BzZVFOQ2tWYTNPQ0syc05QNzNCQjRmZDZWdk81VG04Z0c0V3h3SmtLR3VERHlzTlFadW1JNmxfT3VKLXZhRXBuTHJ3SHhWd3Z2b0NOQl9zWjFZWXJjY2J1RHFlSUViY2psOWlPRzQzWXFIandBX25iNFRmSktMQ3hlOWpaYU9lN3VxSTBTXzh6SjhnUjUxUFo0RWVKSjBXX0JPUQ?oc=5"},
+    {title:"总装机18.96GW！三峡出资25.2亿，开发南疆新能源基地", source:"世纪新能源网", pubDate:"2026-10-31 15:00", cat:"jv",
+     note:"三峡拟设立三峡（新疆）能源投资有限公司，出资 <b>25.2 亿元</b>开发总装机 <b>18.96GW</b> 的南疆新能源基地（沙戈荒大基地通常配套储能），属央国企新设投资平台的资本开支型运作。",
+     link:"https://news.google.com/rss/articles/CBMiVEFVX3lxTFBzZVNBVzZfMmZWWHdQSHJTS1dOdGpWWWVlZGMzNkdkWHNKRVV4ekJmVktNQ082dEZBZE9WWnJ2VmZVUTI0d0ZiQVhmOTJZcHZPWnJ3ZA?oc=5"},
+    {title:"以色列Econergy收购英国四个电池储能系统项目", source:"维度网", pubDate:"2026-10-31 14:43", cat:"mna",
+     note:"海外开发商间的<b>存量项目收购</b>，标的为英国 4 个 BESS；欧洲储能已形成“开发—转手—接盘”交易链条，可对照国内 REITs/基金估值逻辑。",
+     link:"https://news.google.com/rss/articles/CBMiWEFVX3lxTE1EU2I2c1dMVlBJRFIwQkhuMUVYNjFXTUh4ak1MSWptM0JxOUJ0bHUyZ0gzNUNIQkRvNG1kWFpYaDNvUzh5RTB4UlVIbHRjcjBZaFR4b2dmTk4?oc=5"},
+    {title:"深南电A筹划重大资产重组：拟现金收购天合开拓者光伏支架公司51%-70%股权，布局光伏赛道打造第二增长曲线", source:"东方财富", pubDate:"2026-10-31 12:54", cat:"mna",
+     note:"<b>拟现金收购 51%–70%</b> 股权、预计构成重大资产重组；电力企业跨界切入光伏支架（配套储能/电站建设环节），关注对价、业绩承诺与并表节奏。",
+     link:"https://news.google.com/rss/articles/CBMiZkFVX3lxTE80M3czSWUwc3ZfTTh3TlhMb1ZtU2ozQUEySk4yTkJyMklmaHBQLXJDNjJxUGxON2NacnpsUkR5am03am5WZzNGZ3BjVkxnMnVXalIzbVg0T3VNRUZvd3F4a1JWME1NZw?oc=5"},
+    {title:"易储数智6.75亿储能机构间REITs获受理：锚定三年上市目标的资本化落子", source:"文轩新闻", pubDate:"2026-10-31 11:46", cat:"ipo",
+     note:"<b>6.75 亿元</b>机构间 REITs 获受理，为储能电站资产证券化的落地案例；对持有独立储能电站的运营商，等于打通“投—建—证券化退出”闭环。",
+     link:"https://news.google.com/rss/articles/CBMiVkFVX3lxTE5EODZBT292V0lXX1l6WktPemdDMHFLc1hMT25Da2hORnozZThQc0JuU19mOUJwZlJFeTlOZDY1WEFoN2N1NUFILXRzeDRKdEFkMUFRVldB?oc=5"},
+    {title:"欣旺达：子公司欣旺达动力获小米17亿元增资并“出表”，第三季度净利润同比下滑98%", source:"证券之星", pubDate:"2026-10-30 21:19", cat:"jv",
+     note:"同一笔交易的财务侧面：动力子公司增资后<b>“出表”</b>（不再纳入合并报表），母公司 Q3 净利润同比 <b>-98%</b>；需区分会计口径变化与经营实际。",
+     link:"https://news.google.com/rss/articles/CBMiYkFVX3lxTE9qZjk1QlJmY2VvX19pZm9QSE1JWnlYbWVOVTkzVzdfNGE0YVJyWGpEcHU1eDFZRk45cHNOcGhkYk12VkpwdFk3bGpPeld0SElzeGlpSlFlZ3JtLU5SbXp5UUlR?oc=5"},
+    {title:"天能动力(00819.HK)附属天能新材料拟1.503亿元收购安徽鑫钠50.10%股权", source:"TradingView", pubDate:"2026-10-30 21:08", cat:"mna",
+     note:"<b>1.503 亿元</b>收购钠电材料公司 <b>50.10%</b> 股权取得控制权；钠电在长时储能场景的经济性验证期，铅蓄/锂电龙头通过并购卡位上游材料。",
+     link:"https://news.google.com/rss/articles/CBMiakFVX3lxTE12MFo2ZUhucXlVRXlFRURSWE5GcWpSdlpVQlZYdWFDSjBJaGZycUh2SnVVWjZ3R29tbVZtVHdIV2l4Y1lkNm9YeUZtaldJUXVvXzZhX2FucUFHMW1OWWlHYTZzYWJLSi1tMWc?oc=5"}
+  ]
+};
+/*__EMBEDDED_END__*/
+
+/* 实时抓取到的新条目按关键词自动补“为什么重要” */
+const NOTES = [
+  {k:"中集",   n:"储能产业基金相关：关注认缴规模、GP 结构、投向（电站/制造）与出资节奏。"},
+  {k:"智光",   n:"储能子公司股权收购/并表变化，关注少数股权定价与后续利润归属。"},
+  {k:"欣旺达", n:"电池环节增资入股或 IPO 变动，关注持股比例、估值与是否并表。"},
+  {k:"远信储能", n:"港股 IPO 进程：招股定价与基石结构，是储能资产估值的重要参照。"},
+  {k:"REITs",  n:"储能资产证券化，关注底层电站现金流、分派率与扩募安排。"},
+  {k:"天合",   n:"光伏/储能配套资产出售或收购，关注买方协同性与对价。"},
+  {k:"Econergy", n:"海外储能项目并购，关注交易对价与项目 IRR。"},
+  {k:"Sonnen", n:"欧洲户储出清事件，关注客户/资产处置与同业接盘机会。"},
+  {k:"三峡",   n:"央国企新设投资平台/大基地资本开支，通常配套储能，关注装机与出资节奏。"},
+  {k:"破产",   n:"出清/重整事件，关注债权处置与资产再定价，留意低价接盘机会。"},
+  {k:"基金",   n:"基金设立，关注规模、出资结构与投资方向。"},
+  {k:"收购",   n:"收并购，关注标的资产质量、对价与业绩承诺。"},
+  {k:"IPO",    n:"上市/发行进程，关注定价、基石结构与对储能估值体系的影响。"}
+];
+
+const CATS = {
+  all:  {label:"全部",        c:"#7f93b3"},
+  fund: {label:"设立基金",    c:"#f0b429"},
+  mna:  {label:"收并购",      c:"#2dd4ed"},
+  jv:   {label:"合资/增资入股", c:"#a78bfa"},
+  ipo:  {label:"上市/证券化",  c:"#34d399"},
+  risk: {label:"出清/风险",    c:"#f87171"},
+  other:{label:"其他资本运作", c:"#7f93b3"}
+};
+const WEEK = ["周日","周一","周二","周三","周四","周五","周六"];
+
+let items = EMBEDDED.items.map(x => Object.assign({}, x, {_src:"snapshot"}));
+let meta = {fetchedAt: EMBEDDED.fetchedAt, window: EMBEDDED.window, kind:"snapshot"};
+let filterCat = "all", keyword = "";
+let sortMode = "time";          // time | amount
+try{ const sv = localStorage.getItem("ess_sort_mode"); if(sv==="amount"||sv==="time") sortMode = sv; }catch(e){}
+try{ const qp = new URLSearchParams(document.location.search).get("sort"); if(qp==="amount"||qp==="time") sortMode = qp; }catch(e){}
+let live = false, autoOn = true, countdown = 60;
+let lastErrorAt = 0;
+const FILE_MODE = document.location.protocol === "file:";
+
+function esc(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function catOf(c){return CATS[c] || CATS.other;}
+function noteFor(it){
+  if(it.note) return it.note;
+  for(const n of NOTES){ if(it.title && it.title.indexOf(n.k) >= 0) return n.n; }
+  return "";
+}
+function keyOf(t){return String(t||"").replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,"").slice(0,40);}
+const CAT_RANK = {fund:0,mna:1,ipo:2,jv:3,risk:4,other:5};
+function catRank(c){ return CAT_RANK[c]===undefined ? 6 : CAT_RANK[c]; }
+
+/* ---------- 时间 / 时窗 ---------- */
+function tsOf(x){
+  const s = String((x && x.pubDate) || "");
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if(!m) return 0;
+  const d = new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0));
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+function relTime(t){
+  if(!t) return "时间未知";
+  const diff = Date.now() - t;
+  if(diff < 60e3) return "刚刚";
+  const mi = Math.floor(diff/60e3);
+  if(mi < 60) return mi + " 分钟前";
+  const h = Math.floor(mi/60);
+  if(h < 24) return h + " 小时前";
+  return Math.floor(h/24) + " 天前";
+}
+function winHours(){
+  const v = Number(document.getElementById("win").value);
+  return (isFinite(v) && v > 0 ? v : 3) * 24;
+}
+function windowLabel(){ return "近 " + winHours() + " 小时"; }
+function inWindow(it){
+  const t = tsOf(it);
+  if(!t) return true;                        // 时间缺失的条目保留，避免误删
+  return Date.now() - t <= winHours()*3600e3 + 3600e3;   // 留 1 小时容差
+}
+function visibleItems(){
+  // 实时模式下按所选时窗过滤；纯快照模式保留全部内置条目，避免旧快照条目被“当前时间”误删
+  return live ? items.filter(inWindow) : items;
+}
+
+/* ---------- 金额 / 比例提取与高亮 ---------- */
+function moneyHits(t){
+  const s = String(t||""), out = [];
+  const push = v=>{ if(v && out.indexOf(v) < 0 && out.length < 5) out.push(v); };
+  let re = /(\d+(?:\.\d+)?)\s*([万亿]?)\s*元(?:人民币|港元|美元)?/g, m;
+  while((m = re.exec(s))) push(m[1] + (m[2]||"") + "元");
+  re = /(\d+(?:\.\d+)?)\s*亿(?!\s*元)/g;   // “6亿”“2.99亿”等省略“元”的写法（“万”多为数量，避免误判）
+  while((m = re.exec(s))) push(m[1] + "亿");
+  return out;
+}
+/* 金额换算为元，用于排序（取标题中出现的最大金额线索） */
+function amountOf(it){
+  const s = String((it && it.title) || "");
+  let best = 0, m;
+  let re = /(\d+(?:\.\d+)?)\s*([万亿]?)\s*元(?:人民币|港元|美元)?/g;
+  while((m = re.exec(s))){
+    const v = parseFloat(m[1]) * (m[2]==="亿" ? 1e8 : (m[2]==="万" ? 1e4 : 1));
+    if(v > best) best = v;
+  }
+  re = /(\d+(?:\.\d+)?)\s*亿(?!\s*元)/g;
+  while((m = re.exec(s))){
+    const v = parseFloat(m[1]) * 1e8;
+    if(v > best) best = v;
+  }
+  return best;
+}
+/* 展示用的金额文本：从标题的金额线索里挑最大的一条 */
+function amountText(it){
+  const hits = moneyHits((it && it.title) || "");
+  let best = "", bestV = -1;
+  hits.forEach(h=>{
+    const v = amountOf({title:h});
+    if(v > bestV){ bestV = v; best = h; }
+  });
+  return bestV > 0 ? best : "";
+}
+function pctHits(t){
+  const s = String(t||"");
+  // 只保留与股权/交易相关的比例，避免把“净利润下滑98%”之类的经营指标当成持股比例
+  if(!/持股|股权|股份|占比|升至|参股|增资|收购/.test(s)) return [];
+  const out = [], re = /(\d+(?:\.\d+)?)\s*%/g;
+  let m;
+  while((m = re.exec(s)) && out.length < 4){
+    if(out.indexOf(m[1]+"%") < 0) out.push(m[1]+"%");
+  }
+  return out;
+}
+function escRe(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function decorate(s, kw){
+  let out = esc(s||"")
+    .replace(/(\d+(?:\.\d+)?\s*[万亿]?\s*元(?:人民币|港元|美元)?)/g, '<em class="amt">$1</em>')
+    .replace(/(\d+(?:\.\d+)?\s*%)/g, '<em class="amt">$1</em>');
+  if(kw){
+    try{ out = out.replace(new RegExp(escRe(esc(kw)), "gi"), '<mark>$&</mark>'); }catch(e){}
+  }
+  return out;
+}
+function plainNote(it){ return noteFor(it).replace(/<[^>]*>/g,""); }
+
+/* ---------- 动态主线：按类别取最新 + 金额/比例线索 ---------- */
+function renderBrief(vis){
+  const order = [
+    {k:"fund", n:"设立基金"},
+    {k:"mna",  n:"收并购"},
+    {k:"ipo",  n:"上市·证券化"},
+    {k:"jv",   n:"合资/增资入股"},
+    {k:"risk", n:"出清·风险"}
+  ];
+  const themes = order.map((t,i)=>{
+    const list = vis.filter(x=>x.cat===t.k).sort((a,b)=> tsOf(b)-tsOf(a));
+    return Object.assign({}, t, {list:list, order:i});
+  }).filter(t=>t.list.length>0)
+    .sort((a,b)=> b.list.length-a.list.length || a.order-b.order)
+    .slice(0,5);
+
+  const box = document.getElementById("takeaways");
+  if(!themes.length){
+    box.innerHTML = `<div class="ins"><h3>当前时窗暂无线索</h3><p class="tk-empty">可切换「近72小时」或点击右上「立即刷新」重新抓取。</p></div>`;
+    return;
+  }
+  box.innerHTML = themes.map((t,i)=>{
+    const top = t.list.slice(0,2);
+    const amts = [], pcts = [];
+    t.list.forEach(it=>{
+      moneyHits(it.title).forEach(v=>{ if(amts.indexOf(v)<0) amts.push(v); });
+      pctHits(it.title).forEach(v=>{ if(pcts.indexOf(v)<0) pcts.push(v); });
+    });
+    const amtLine = (amts.length || pcts.length)
+      ? `<div class="tk-amt">${amts.length?`金额：<em class="amt">${amts.slice(0,3).join(" · ")}</em>`:""}${amts.length&&pcts.length?"　":""}${pcts.length?`比例：<em class="amt">${pcts.slice(0,2).join(" · ")}</em>`:""}</div>`
+      : "";
+    return `<div class="ins" data-cat="${t.k}" title="点击查看该类全部线索">
+      <h3>${"①②③④⑤"[i]} ${t.n}<span class="n">${t.list.length} 条</span></h3>
+      <ul class="tk">${top.map(it=>`<li>${decorate(it.title, keyword)}</li>`).join("")}</ul>
+      ${amtLine}
+    </div>`;
+  }).join("");
+}
+
+function render(){
+  const vis = visibleItems();
+  const counts = {all: vis.length};
+  vis.forEach(i=>{counts[i.cat]=(counts[i.cat]||0)+1;});
+  const kpis = [
+    {k:"all",  v:counts.all||0,  s:"窗口内线索", d:windowLabel()},
+    {k:"fund", v:counts.fund||0, s:"设立基金",   d:"产业基金 / 私募 / LP"},
+    {k:"mna",  v:counts.mna||0,  s:"收并购",     d:"股权收购 / 资产易主"},
+    {k:"jv",   v:counts.jv||0,   s:"合资·增资入股", d:"合资公司 / 增资 / 参股"},
+    {k:"ipo",  v:counts.ipo||0,  s:"上市·证券化", d:"IPO / REITs / 定增"},
+    {k:"risk", v:counts.risk||0, s:"出清·风险",  d:"破产 / 重整 / 退出"}
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(x=>{
+    const c = x.k==="all" ? "#3f5c82" : catOf(x.k).c;
+    return `<div class="kpi ${filterCat===x.k?"on":""}" data-cat="${x.k}" style="--c:${c}" title="点击只看该类"><b>${x.v}</b><span>${x.s}</span><small>${x.d}</small></div>`;
+  }).join("");
+
+  const tabKeys = ["all","fund","mna","jv","ipo","risk"];
+  if(counts.other) tabKeys.push("other");
+  const tabs = tabKeys.map(k=>{
+    const n = counts[k]||0;
+    return `<div class="tab ${filterCat===k?"on":""}" data-cat="${k}">${catOf(k).label}<span class="n">${n}</span></div>`;
+  }).join("");
+  document.getElementById("tabs").innerHTML = tabs;
+  document.querySelectorAll("#sortSeg .seg").forEach(b=>{
+    const on = (b.dataset.sort === sortMode);
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+
+  renderBrief(vis);
+
+  let list = vis.slice();
+  if(filterCat!=="all") list = list.filter(i=>i.cat===filterCat);
+  if(keyword){
+    const kw = keyword.toLowerCase();
+    list = list.filter(i=>{
+      const txt = ((i.title||"") + " " + (i.source||"") + " " + plainNote(i) + " " + catOf(i.cat).label).toLowerCase();
+      return txt.indexOf(kw) >= 0;
+    });
+  }
+  if(sortMode === "amount"){
+    // 金额优先：标题金额线索从高到低；无金额的排在后面，再按时间倒序
+    list.sort((a,b)=> (amountOf(b)-amountOf(a)) || (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
+  } else {
+    list.sort((a,b)=> (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
+  }
+
+  if(!list.length){
+    document.getElementById("list").innerHTML = `<div class="empty">当前筛选下暂无线索，试着切换分类或清空搜索词。${(keyword||filterCat!=="all")?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
+    const btnReset = document.getElementById("btnReset");
+    if(btnReset) btnReset.onclick = ()=>{
+      filterCat = "all"; keyword = ""; document.getElementById("q").value = ""; render();
+    };
+    return;
+  }
+  let html = "", curDay = "";
+  const byAmount = (sortMode === "amount");
+  const withAmt = byAmount ? list.filter(i=>amountOf(i) > 0).length : list.length;
+  if(byAmount){
+    html += `<div class="day"><span class="d">金额榜</span><span class="w">标题金额线索由高到低</span><span class="ln"></span><span class="cnt">${withAmt}/${list.length} 条含金额</span></div>`;
+  }
+  let noAmtStarted = false;
+  list.forEach((it,idx)=>{
+    const t = tsOf(it);
+    const day = (it.pubDate||"").slice(0,10);
+    if(byAmount && !noAmtStarted && amountOf(it) <= 0){
+      noAmtStarted = true;
+      html += `<div class="day"><span class="d">未披露金额</span><span class="w">按时间倒序</span><span class="ln"></span><span class="cnt">${list.length-withAmt} 条</span></div>`;
+    }
+    if(!byAmount && day !== curDay){
+      curDay = day;
+      const d = t ? new Date(t) : null;
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      const sameDay = day === todayStr;
+      const label = d ? `${d.getMonth()+1}月${d.getDate()}日` : "时间未知";
+      const cnt = list.filter(x=>(x.pubDate||"").slice(0,10)===day).length;
+      html += `<div class="day"><span class="d">${label}</span><span class="w">${d?WEEK[d.getDay()]:""}${sameDay?" · 今日":""}</span><span class="ln"></span><span class="cnt">${cnt} 条</span></div>`;
+    }
+    const c = catOf(it.cat).c;
+    const note = noteFor(it);
+    const tags = [];
+    if(live && it._src==="snapshot") tags.push(`<span class="mini" title="该条来自页面内置快照，实时源本轮未覆盖到">预置</span>`);
+    if(it._new) tags.push(`<span class="new">NEW</span>`);
+    const amt = byAmount ? amountText(it) : "";
+    const amtTag = byAmount
+      ? (amt ? `<span class="amt-chip" title="标题中的金额线索，非交易总额">${esc(amt)}</span>`
+             : `<span class="mini" title="标题未披露具体金额">未披露金额</span>`)
+      : "";
+    html += `<div class="card" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
+      <div class="crow">
+        <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
+        ${tags.join("")}
+        ${amtTag}
+        <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"} · ${esc(it.source||"未知来源")}</span>
+      </div>
+      <h4>${decorate(it.title, keyword)}</h4>
+      ${note?`<p class="note">${note}</p>`:""}
+      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a></div>
+    </div>`;
+  });
+  document.getElementById("list").innerHTML = html;
+}
+
+function setStatus(mode, text){
+  document.getElementById("status").className = "status " + (mode||"");
+  document.getElementById("statusText").textContent = text;
+}
+
+function stampText(){
+  const t = tsOf({pubDate: meta.fetchedAt});
+  const abs = String(meta.fetchedAt||"").slice(5,16);
+  const prefix = meta.kind==="live" ? "更新" : "快照";
+  return `${prefix} · ${relTime(t)}${abs?`（${abs}）`:""}`;
+}
+function updateFreshness(){
+  document.getElementById("stamp").textContent = stampText();
+  if(!live) return;
+  const vis = visibleItems();
+  const nNew = vis.filter(i=>i._new).length;
+  const extra = nNew ? ` · +${nNew} 新` : "";
+  if(Date.now() - lastErrorAt < 120e3){ setStatus("fail", "刷新失败/超时 · 保留上次结果"); return; }
+  const age = Date.now() - tsOf({pubDate: meta.fetchedAt});
+  if(age > 90*60e3) setStatus("stale", `缓存数据 · ${vis.length} 条${extra}`);
+  else setStatus("live", `实时模式 · ${vis.length} 条${extra}`);
+}
+
+async function loadLive(silent, force){
+  if(FILE_MODE){
+    setStatus("", "内置快照 · 本地文件");
+    document.getElementById("cd").textContent = "—";
+    return;
+  }
+  const days = document.getElementById("win").value;
+  if(!silent) setStatus("loading","抓取中…");
+  let timer = null;
+  try{
+    const ctl = new AbortController();
+    timer = setTimeout(()=>ctl.abort(), 25000);
+    const url = `/api/news?days=${days}&t=${Date.now()}` + (force ? "&refresh=1" : "");
+    const res = await fetch(url, {cache:"no-store", signal: ctl.signal});
+    clearTimeout(timer); timer = null;
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if(!data || !data.items) throw new Error("bad payload");
+
+    // 与上一版对比，标出本次新增条目（不覆盖已收藏的点评）
+    const prevKeys = new Set(items.map(i=>keyOf(i.title)));
+    const fresh = data.items.map(x=>{
+      const old = items.find(i=>keyOf(i.title)===keyOf(x.title));
+      return Object.assign({}, x, {
+        _src:"live",
+        _new: !prevKeys.has(keyOf(x.title)),
+        note: old && old.note ? old.note : ""
+      });
+    });
+    // 实时源没覆盖到、但仍在当前时窗内的内置条目，继续保留（标记“预置”）
+    const keepOld = items.filter(i=> i._src==="snapshot" && inWindow(i) && !fresh.some(f=>keyOf(f.title)===keyOf(i.title)));
+    items = fresh.concat(keepOld);
+    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live"};
+    live = true;
+    lastErrorAt = 0;
+    updateFreshness();
+    render();
+  }catch(e){
+    if(timer) clearTimeout(timer);
+    // 已经拿到过实时数据时，刷新失败保留上一次结果，不退回内置快照
+    if(items.some(i=>i._src==="live")){
+      lastErrorAt = Date.now();
+      setStatus("fail", "刷新失败/超时 · 保留上次结果");
+      document.getElementById("stamp").textContent = stampText();
+      return;
+    }
+    live = false;
+    setStatus(document.location.protocol==="file:" ? "" : "fail",
+      document.location.protocol==="file:" ? "内置快照（本地文件模式）" : "接口不可用 · 显示快照");
+    document.getElementById("stamp").textContent = stampText();
+    if(!silent) render();
+  }
+}
+
+function tick(){
+  if(FILE_MODE){ document.getElementById("cd").textContent = "—"; return; }
+  if(!autoOn){ document.getElementById("cd").textContent = "已关闭"; return; }
+  countdown--;
+  if(countdown<=0){ countdown = 60; loadLive(true); }
+  document.getElementById("cd").textContent = countdown + "s";
+}
+
+// KPI 卡片可直接筛选分类
+document.getElementById("kpis").addEventListener("click", e=>{
+  const k = e.target.closest(".kpi[data-cat]");
+  if(!k) return;
+  filterCat = k.dataset.cat || "all";
+  render();
+});
+// 动态主线卡片点击后跳到对应分类
+document.getElementById("takeaways").addEventListener("click", e=>{
+  const box = e.target.closest(".ins[data-cat]");
+  if(!box) return;
+  filterCat = box.dataset.cat;
+  render();
+  const list = document.getElementById("list");
+  if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
+});
+document.getElementById("tabs").addEventListener("click", e=>{
+  const t = e.target.closest(".tab");
+  if(!t) return;
+  filterCat = t.dataset.cat;
+  render();
+});
+document.getElementById("sortSeg").addEventListener("click", e=>{
+  const b = e.target.closest(".seg");
+  if(!b || b.dataset.sort===sortMode) return;
+  sortMode = b.dataset.sort;
+  try{ localStorage.setItem("ess_sort_mode", sortMode); }catch(err){}
+  render();
+});
+document.getElementById("q").addEventListener("input", e=>{
+  keyword = e.target.value.trim();
+  render();
+});
+document.getElementById("btn").addEventListener("click", ()=>loadLive(false, true));
+document.getElementById("win").addEventListener("change", ()=>{
+  countdown = 60;
+  render();               // 先按新时窗本地重算，再拉取
+  loadLive(false);
+});
+document.getElementById("autoOn").addEventListener("change", e=>{
+  autoOn = e.target.checked;
+  countdown = 60;
+  if(autoOn && live) loadLive(true);
+});
+
+render();
+document.getElementById("stamp").textContent = stampText();
+if(!FILE_MODE){ loadLive(true); }
+else { setStatus("", "内置快照 · 本地文件"); document.getElementById("cd").textContent = "—"; }
+setInterval(tick, 1000);
+setInterval(updateFreshness, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "ess-capital-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "储能产业链资本运作实时看板（Render / Node.js 20）",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
