@@ -508,6 +508,9 @@ function render(){
       ? (amt ? `<span class="amt-chip" title="标题中的金额线索，非交易总额">${esc(amt)}</span>`
              : `<span class="mini" title="标题未披露具体金额">未披露金额</span>`)
       : "";
+    const alt = (it.via==="news" || !it.via) && it._src!=="snapshot"
+      ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
+      : "";
     html += `<div class="card" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
       <div class="crow">
         <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
@@ -517,7 +520,7 @@ function render(){
       </div>
       <h4>${decorate(it.title, keyword)}</h4>
       ${note?`<p class="note">${note}</p>`:""}
-      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a></div>
+      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a>${alt}</div>
     </div>`;
   });
   document.getElementById("list").innerHTML = html;
