@@ -29,6 +29,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
            '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const QUERIES = [
+  // 资本运作
   ['acq', '储能 并购'],
   ['acq2', '储能 收购'],
   ['fund', '储能 基金'],
@@ -45,41 +46,63 @@ const QUERIES = [
   ['battery2', '电池 收购'],
   ['acq3', '储能 股权转让'],
   ['acq4', '储能 电站 转让 出售'],
-  ['acq5', '储能 收购 公告'],
-  ['fund4', '储能 基金 成立 落地'],
   ['ipo', '储能 IPO 招股'],
   ['inv5', '储能 定增 募资'],
   ['inv6', '储能 融资 亿元'],
   ['ma2', '宁德时代 收购'],
   ['ma3', '光储 并购 收购'],
-  ['ma4', '储能 重组 借壳 上市'],
-  ['ma5', '储能 项目公司 股权']
+  ['ma4', '储能 借壳 上市'],
+  // 产业链（扩产 / 项目 / 订单）
+  ['cap1', '储能 扩产'],
+  ['cap2', '储能 产能 投产'],
+  ['cap3', '储能 项目 开工'],
+  ['cap4', '储能 中标 招标'],
+  ['cap5', '储能 订单 供货'],
+  ['cap6', '储能 电站 并网 投运'],
+  ['cap7', '工商业储能 项目'],
+  ['cap8', '独立储能 电站'],
+  // 技术 / 产品
+  ['tech1', '储能 技术 突破'],
+  ['tech2', '钠离子电池 量产'],
+  ['tech3', '固态电池 量产'],
+  ['tech4', '液流电池 项目'],
+  ['tech5', '长时储能 技术'],
+  ['tech6', '逆变器 新品 发布'],
+  ['tech7', '储能 电芯 新品'],
+  // 政策 / 市场 / 出海
+  ['pol1', '新型储能 政策'],
+  ['pol2', '储能 电价 机制'],
+  ['pol3', '储能 标准 规范'],
+  ['mkt1', '储能 出海 海外订单'],
+  ['mkt2', '储能 价格 涨价 降价'],
+  ['mkt3', '储能 产能过剩 内卷'],
+  ['mkt4', '储能 装机 需求'],
+  // 出清 / 风险
+  ['risk1', '储能 破产 停产'],
+  ['risk2', '储能 事故 起火']
 ].map(([id, t]) => ({ id, t }));
 
 // 微信公众号文章检索（搜狗微信搜索，无需登录；覆盖 Google News 不收录的公众号稿件）
 const WX_QUERIES = [
   ['wx_acq', '储能 并购'],
-  ['wx_acq2', '储能 收购'],
   ['wx_fund', '储能 基金'],
-  ['wx_inv', '储能 增资 入股'],
-  ['wx_equity', '储能 股权 转让'],
   ['wx_coop', '储能 签约 合作'],
-  ['wx_newfund', '新能源 产业基金 设立'],
-  ['wx_bat', '锂电 并购 收购'],
-  ['wx_oversea', '储能 出海 投资'],
-  ['wx_sovereign', '主权基金 新能源']
+  ['wx_cap', '储能 扩产 投产'],
+  ['wx_order', '储能 中标 订单'],
+  ['wx_policy', '储能 政策 电价'],
+  ['wx_solid', '固态电池 量产'],
+  ['wx_na', '钠离子电池 储能'],
+  ['wx_oversea', '储能 出海'],
+  ['wx_price', '储能 价格 内卷']
 ].map(([id, t]) => ({ id, t }));
 const WX_GAP_MS = 4000;                        // 搜狗对高频请求很敏感，查询间隔 4 秒
 const WX_CACHE_MS = 30 * 60 * 1000;            // 公众号结果复用 30 分钟
 const WX_BLOCK_BACKOFF_MS = 45 * 60 * 1000;    // 触发验证码后退避 45 分钟
 const WX_CACHE_FILE = path.join(ROOT, 'wx_cache.json');
 
-const RE_DOMAIN = /储能|电池|锂电|钠电|钠离子|电芯|光储|逆变器|PCS|充电桩|换电|正极|负极|电解液|隔膜|硬碳|炭材料|新能源|光伏|风电|虚拟电厂/;
-const RE_COMPANY = /宁德时代|比亚迪|亿纬|国轩|中创新航|欣旺达|海辰|鹏辉|南都电源|派能|沃太|艾罗|德业|锦浪|固德威|科华|上能电气|盛弘|禾望|英维克|申菱|同飞|高澜|阳光电源|天合光能|阿特斯|晶科|隆基|通威|协鑫|天能|超威|南孚|珠海冠宇|力神|瑞浦|兰钧|蜂巢|远景|双一力|精控|许继|平高|四方|南网科技/;
-const RE_CAPITAL = /并购|收购|基金|合资|增资|入股|参股|股权|定增|重组|重整|融资|IPO|招股|上市|REITs|出资|转让|受让|易主|募资|战投|战略投资|设立|募集|估值|破产|出清|停产|清算|停牌/;
-// 公众号稿件常用“签约/合作”表达资本动作，单独放宽（仅对公众号条目生效）
-const RE_COOP = /签约|战略合作|共同投资|共建|联手|框架协议|投资协议|达成合作|揭牌|项目落地|投建|合作基金|投资局|主权基金/;
-const RE_NOISE = /ETF|份额|盘中|涨停|跌停|股价|行情|评级|研报|股吧|期货|指数|招聘|招标|中标|持仓|重仓|成交额|换手|估值锚点|月销|销量|锁单|SUV|早参|晚报|速览|盘点|直播|风电场|涨\d|跌\d/;
+const RE_CHAIN = /储能|新型储能|锂电|锂电池|锂离子|钠离子|钠电|固态电池|半固态|液流|钒电池|压缩空气|飞轮储能|氢储|电芯|电池包|PACK|BMS|EMS|PCS|变流器|逆变器|光储|光伏|风电|氢能|充电桩|超充|换电|虚拟电厂|微电网|源网荷储|电力现货|容量电价|正极|负极|电解液|隔膜|结构件|铜箔|铝箔|电池回收|梯次利用|热管理|温控|消防|储能电站|工商业储能|户用储能|独立储能|共享储能/;
+const RE_COMPANY = /宁德时代|比亚迪|亿纬|国轩|中创新航|欣旺达|海辰|鹏辉|南都电源|派能|沃太|艾罗|德业|锦浪|固德威|科华|上能电气|盛弘|禾望|英维克|申菱|同飞|高澜|阳光电源|天合光能|阿特斯|晶科|隆基|通威|协鑫|天能|超威|南孚|珠海冠宇|力神|瑞浦|兰钧|蜂巢|远景|双一力|精控|许继|平高|四方|南网科技|禾迈|正泰|思源|科陆|林洋|智光|中天科技|亨通|国电南瑞|特变电工|海博思创|双登|雄韬|中国电建|中国能建|三峡能源|中广核|晶澳|东方日升/;
+const RE_NOISE = /ETF|份额|盘中|涨停|跌停|股价|行情|评级|研报|股吧|期货|指数|招聘|持仓|重仓|成交额|换手|估值锚点|月销|销量|锁单|SUV|早参|晚报|速览|盘点|直播|风电场|涨\d|跌\d/;
 const RE_NONWORD = /[^\u4e00-\u9fa5A-Za-z0-9]/g;
 
 const caches = new Map();        // days -> { payload, at }
@@ -309,11 +332,15 @@ async function fetchWechatOnce() {
 }
 
 function classify(text) {
-  if (/基金|私募|认缴|LP|合伙企业/.test(text)) return 'fund';
-  if (/IPO|招股|上市|REITs|定增|募资|递表|聆讯|资产证券化|首次公开发行/.test(text)) return 'ipo';
-  if (/破产|停产|暴雷|退出|清算|重整/.test(text)) return 'risk';
-  if (/收购|并购|受让|股权转让|易主|拿下.{0,16}股权|持股.{0,8}(升至|至).{0,6}%|出售|剥离|要约|取得.{0,10}控制权/.test(text)) return 'mna';
-  if (/合资|成立|设立|新设|增资|入股|参股|出资|战投|战略投资|联手|合作|投资有限公司/.test(text)) return 'jv';
+  if (/破产|停产|暴雷|退出|清算|重整|起火|爆炸|召回|亏损|裁员|安全事故|火灾|违约|退市/.test(text)) return 'risk';
+  if (/基金|私募|认缴|LP|合伙企业|母基金/.test(text)) return 'fund';
+  if (/收购|并购|受让|股权转让|易主|拿下.{0,16}股权|持股.{0,8}(升至|至).{0,6}%|出售|剥离|要约|取得.{0,10}控制权|增持|减持/.test(text)) return 'mna';
+  if (/IPO|招股|上市|REITs|定增|募资|递表|聆讯|资产证券化|首次公开发行|借壳/.test(text)) return 'ipo';
+  if (/合资|成立.{0,8}公司|新设|增资|入股|参股|出资|战投|战略投资|战略合作|签约|共建|联手|框架协议|揭牌|投资有限公司/.test(text)) return 'jv';
+  if (/扩产|产能|投产|开工|奠基|投运|并网|装机|交付|中标|订单|供货|项目落地/.test(text)) return 'cap';
+  if (/政策|标准|补贴|电价|机制|监管|试点|规划|征求意见|细则|现货市场|容量电价|强制配储/.test(text)) return 'policy';
+  if (/技术|研发|量产|新品|突破|专利|认证|首台|下线|能量密度|循环寿命|效率/.test(text)) return 'tech';
+  if (/出海|海外|出口|价格|涨价|降价|市场|需求|竞争|内卷|过剩|排产|份额/.test(text)) return 'industry';
   return 'other';
 }
 
@@ -334,8 +361,7 @@ function selectItems(raw, days) {
     const isWx = it.via === 'wechat';
     if (title.length < 8) continue;
     if (RE_NOISE.test(title)) continue;
-    if (!RE_DOMAIN.test(title) && !RE_COMPANY.test(title)) continue;
-    if (isWx ? (!RE_CAPITAL.test(title) && !RE_COOP.test(title)) : !RE_CAPITAL.test(title)) continue;
+    if (!RE_CHAIN.test(title) && !RE_COMPANY.test(title)) continue;
     const ms = Number.isFinite(it.ts) ? it.ts : Date.parse(it.pubDate);
     if (!Number.isFinite(ms) || ms < from) continue;
     if (ms > Date.now() + 3600 * 1000) continue;   // 过滤公众号搜索结果里的异常未来时间
@@ -376,7 +402,7 @@ function selectItems(raw, days) {
     });
   }
   rows.sort((a, b) => b.ts - a.ts);
-  return rows;
+  return rows.slice(0, 260);      // 控制首屏体积，保留最新 260 条
 }
 
 /* ---------------- 缓存与刷新 ---------------- */

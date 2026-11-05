@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>储能产业链 · 资本运作实时看板</title>
+<title>储能产业链 · 实时资讯看板</title>
 <style>
   :root{
     --bg:#080d18; --panel:#111a2b; --line:#1e2b40;
@@ -52,7 +52,7 @@
   .auto input{accent-color:#2dd4ed}
   select{font:inherit;font-size:12px;background:#14243a;color:var(--txt);border:1px solid #26405f;border-radius:8px;padding:6px 8px}
 
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:22px 0 6px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:22px 0 6px}
   .kpi{background:linear-gradient(160deg,#131e31,#0e1727);border:1px solid var(--line);border-radius:14px;padding:14px 15px;position:relative;overflow:hidden}
   .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,#2a3b52)}
   .kpi b{display:block;font-size:25px;line-height:1.15;font-variant-numeric:tabular-nums;color:#fff}
@@ -149,8 +149,8 @@
     <div class="brand">
       <div class="logo">ESS</div>
       <div>
-        <h1>储能产业链 · 资本运作实时看板</h1>
-        <p class="sub">设立基金 · 收并购 · 合资/增资入股 · 上市与证券化 —— 滚动窗口追踪</p>
+        <h1>储能产业链 · 实时资讯看板</h1>
+        <p class="sub">扩产/项目 · 技术/产品 · 政策/标准 · 资本运作 · 行业市场 —— 全链条滚动追踪</p>
       </div>
     </div>
     <div class="ctrl">
@@ -182,7 +182,7 @@
   <main id="list"></main>
 
   <footer>
-    <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，25 组检索式（基金/并购/合资/增资/股权转让/IPO 等）×「行业词 + 资本运作词」双重过滤 × 标题归一化 + 二元组近似去重。</div>
+    <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 60 秒自动刷新，手动刷新会等待最新一轮抓取；上游结果缓存 10 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
     <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类、KPI、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
     <div><b>数据源</b>：Google News RSS 中文频道 + 微信公众号（搜狗微信搜索，带「公众号」标记）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
@@ -270,10 +270,14 @@ const CATS = {
   all:  {label:"全部",        c:"#7f93b3"},
   fund: {label:"设立基金",    c:"#f0b429"},
   mna:  {label:"收并购",      c:"#2dd4ed"},
-  jv:   {label:"合资/增资入股", c:"#a78bfa"},
-  ipo:  {label:"上市/证券化",  c:"#34d399"},
+  jv:   {label:"合资/合作",    c:"#a78bfa"},
+  ipo:  {label:"上市/融资",    c:"#34d399"},
+  cap:  {label:"扩产/项目",    c:"#fb923c"},
+  tech: {label:"技术/产品",    c:"#38bdf8"},
+  policy:{label:"政策/标准",   c:"#f472b6"},
+  industry:{label:"行业/市场", c:"#94a3b8"},
   risk: {label:"出清/风险",    c:"#f87171"},
-  other:{label:"其他资本运作", c:"#7f93b3"}
+  other:{label:"其他动态",    c:"#7f93b3"}
 };
 const WEEK = ["周日","周一","周二","周三","周四","周五","周六"];
 
@@ -298,7 +302,7 @@ function noteFor(it){
   return "";
 }
 function keyOf(t){return String(t||"").replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,"").slice(0,40);}
-const CAT_RANK = {fund:0,mna:1,ipo:2,jv:3,risk:4,other:5};
+const CAT_RANK = {cap:0,policy:1,tech:2,industry:3,fund:4,mna:5,jv:6,ipo:7,risk:8,other:9};
 function catRank(c){ return CAT_RANK[c]===undefined ? 6 : CAT_RANK[c]; }
 
 /* ---------- 时间 / 时窗 ---------- */
@@ -396,10 +400,14 @@ function plainNote(it){ return noteFor(it).replace(/<[^>]*>/g,""); }
 /* ---------- 动态主线：按类别取最新 + 金额/比例线索 ---------- */
 function renderBrief(vis){
   const order = [
+    {k:"cap",  n:"扩产·项目"},
+    {k:"policy",n:"政策·标准"},
+    {k:"tech", n:"技术·产品"},
+    {k:"industry",n:"行业·市场"},
     {k:"fund", n:"设立基金"},
     {k:"mna",  n:"收并购"},
-    {k:"ipo",  n:"上市·证券化"},
-    {k:"jv",   n:"合资/增资入股"},
+    {k:"jv",   n:"合资·合作"},
+    {k:"ipo",  n:"上市·融资"},
     {k:"risk", n:"出清·风险"}
   ];
   const themes = order.map((t,i)=>{
@@ -440,16 +448,20 @@ function render(){
     {k:"all",  v:counts.all||0,  s:"窗口内线索", d:windowLabel()},
     {k:"fund", v:counts.fund||0, s:"设立基金",   d:"产业基金 / 私募 / LP"},
     {k:"mna",  v:counts.mna||0,  s:"收并购",     d:"股权收购 / 资产易主"},
-    {k:"jv",   v:counts.jv||0,   s:"合资·增资入股", d:"合资公司 / 增资 / 参股"},
-    {k:"ipo",  v:counts.ipo||0,  s:"上市·证券化", d:"IPO / REITs / 定增"},
-    {k:"risk", v:counts.risk||0, s:"出清·风险",  d:"破产 / 重整 / 退出"}
+    {k:"jv",   v:counts.jv||0,   s:"合资·合作",  d:"合资 / 增资 / 签约"},
+    {k:"ipo",  v:counts.ipo||0,  s:"上市·融资",  d:"IPO / 定增 / REITs"},
+    {k:"cap",  v:counts.cap||0,  s:"扩产·项目",  d:"扩产 / 开工 / 中标"},
+    {k:"tech", v:counts.tech||0, s:"技术·产品",  d:"量产 / 新品 / 突破"},
+    {k:"policy",v:counts.policy||0,s:"政策·标准", d:"电价 / 补贴 / 规范"},
+    {k:"industry",v:counts.industry||0,s:"行业·市场",d:"出海 / 价格 / 需求"},
+    {k:"risk", v:counts.risk||0, s:"出清·风险",  d:"破产 / 停产 / 事故"}
   ];
   document.getElementById("kpis").innerHTML = kpis.map(x=>{
     const c = x.k==="all" ? "#3f5c82" : catOf(x.k).c;
     return `<div class="kpi ${filterCat===x.k?"on":""}" data-cat="${x.k}" style="--c:${c}" title="点击只看该类"><b>${x.v}</b><span>${x.s}</span><small>${x.d}</small></div>`;
   }).join("");
 
-  const tabKeys = ["all","fund","mna","jv","ipo","risk"];
+  const tabKeys = ["all","fund","mna","jv","ipo","cap","tech","policy","industry","risk"];
   if(counts.other) tabKeys.push("other");
   const tabs = tabKeys.map(k=>{
     const n = counts[k]||0;
