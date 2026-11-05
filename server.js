@@ -282,6 +282,34 @@ async function fetchSinaZhibo(days) {
   return out;
 }
 
+/* 北极星储能网：储能垂直媒体编辑稿（质量接近公众号深度稿，国内机房可直连） */
+async function fetchBjx(days) {
+  const out = [];
+  const from = Date.now() - days * 24 * 3600 * 1000;
+  const pages = ['https://chuneng.bjx.com.cn/'];
+  for (const url of pages) {
+    let html = '';
+    try {
+      html = await httpGet(url, 0, { Referer: 'https://chuneng.bjx.com.cn/' });
+    } catch (e) {
+      console.warn(`[bjx] ${url} ${e.message}`);
+      continue;
+    }
+    const re = /<a[^>]*title="([^"]{8,120})"[^>]*href="(https?:\/\/news\.bjx\.com\.cn\/html\/(\d{8})\/[^"]+)"/g;
+    let m;
+    while ((m = re.exec(html))) {
+      const title = decodeEntities(m[1]).trim();
+      const d = m[3];
+      const ts = Date.parse(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T09:00:00+08:00`);
+      if (!Number.isFinite(ts) || ts < from) continue;
+      out.push({ title, link: m[2], source: '北极星储能网', ts, via: 'deep', query: 'bjx' });
+    }
+    await sleep(300);
+  }
+  console.log(`[bjx] raw ${out.length}`);
+  return out;
+}
+
 async function fetchEmKx(days) {
   const out = [];
   const cutoff = Date.now() - Math.min(days, 1.5) * 24 * 3600 * 1000;
@@ -461,8 +489,8 @@ function selectItems(raw, days) {
   const seen = new Set();
   const seenTxt = [];
   const rows = [];
-  // 同一事件多源命中时，优先保留微信公众号文章（质量最高），其次直连快讯，最后 Google 跳转
-  const PRIO = { wechat: 0, sina: 1, em: 1, news: 2 };
+  // 来源质量：微信公众号 > 储能垂直媒体深度稿 > 直连快讯 > Google 跳转
+  const PRIO = { wechat: 0, deep: 1, sina: 2, em: 2, news: 3 };
   const ordered = raw.slice().sort((a, b) => (PRIO[a.via] ?? 2) - (PRIO[b.via] ?? 2));
   for (const it of ordered) {
     const title = String(it.title || '').trim();
@@ -516,7 +544,7 @@ function selectItems(raw, days) {
   const CAP = 260;
   if (rows.length <= CAP) return rows;
   const keep = rows.slice(0, CAP);
-  const wxExtra = rows.slice(CAP).filter(r => r.via === 'wechat');
+  const wxExtra = rows.slice(CAP).filter(r => r.via === 'wechat' || r.via === 'deep');
   return keep.concat(wxExtra).sort((a, b) => b.ts - a.ts);
 }
 
@@ -561,11 +589,12 @@ function ensureRefresh(days) {
 
 async function runRefresh(days) {
   lastAttemptAt = Date.now();
-  // Google News、公众号、直连快讯源并行抓取，互不阻塞
-  const [newsRaw, wxRaw, sinaRaw, emRaw] = await Promise.all([
-    fetchAll(days), fetchWechat(), fetchSinaZhibo(days), fetchEmKx(days)
+  // Google News、公众号池、直连快讯、储能垂直媒体 并行抓取，互不阻塞
+  const [newsRaw, wxRaw, sinaRaw, emRaw, bjxRaw] = await Promise.all([
+    fetchAll(days), fetchWechat(), fetchSinaZhibo(days), fetchEmKx(days),
+    fetchBjx(days).catch(e => { console.warn('[bjx] ' + e.message); return []; })
   ]);
-  const raw = newsRaw.concat(wxRaw, sinaRaw, emRaw);
+  const raw = newsRaw.concat(wxRaw, sinaRaw, emRaw, bjxRaw);
   const items = selectItems(raw, days);
   if (!items.length) {
     lastError = `上游返回 ${raw.length} 条，过滤后为 0`;
@@ -576,6 +605,7 @@ async function runRefresh(days) {
   for (const i of items) counts[i.cat] = (counts[i.cat] || 0) + 1;
   const wechatCount = items.filter(i => i.via === 'wechat').length;
   const directCount = items.filter(i => i.via === 'sina' || i.via === 'em').length;
+  const deepCount = items.filter(i => i.via === 'deep').length;
   const payload = {
     ok: true,
     fetchedAt: cnParts(Date.now()).full,
@@ -585,11 +615,12 @@ async function runRefresh(days) {
     counts,
     wechat: { ok: lastWechat.ok, raw: lastWechat.raw, count: wechatCount, error: lastWechat.error || '' },
     direct: directCount,
+    deep: deepCount,
     items
   };
   caches.set(days, { payload, at: Date.now() });
   lastError = '';
-  console.log(`[refresh] days=${days} ok: ${items.length} items (公众号 ${wechatCount} / 直达 ${directCount}) / raw ${raw.length}`);
+  console.log(`[refresh] days=${days} ok: ${items.length} items (公众号 ${wechatCount} / 深度 ${deepCount} / 直达 ${directCount}) / raw ${raw.length}`);
 }
 
 /* ---------------- HTTP 服务 ---------------- */
@@ -696,4 +727,4 @@ if (require.main === module) {
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
 
-module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat, fetchSinaZhibo, fetchEmKx };
+module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat, fetchSinaZhibo, fetchEmKx, fetchBjx };
