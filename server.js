@@ -93,7 +93,13 @@ const WX_QUERIES = [
   ['wx_solid', '固态电池 量产'],
   ['wx_na', '钠离子电池 储能'],
   ['wx_oversea', '储能 出海'],
-  ['wx_price', '储能 价格 内卷']
+  ['wx_price', '储能 价格 内卷'],
+  ['wx_long', '长时储能 液流'],
+  ['wx_sys', '储能系统 集成'],
+  ['wx_pcs', '储能 PCS 逆变器'],
+  ['wx_cell', '储能电芯 产能'],
+  ['wx_ind', '工商业储能'],
+  ['wx_mkt', '储能 装机 市场']
 ].map(([id, t]) => ({ id, t }));
 const WX_GAP_MS = 4000;                        // 搜狗对高频请求很敏感，查询间隔 4 秒
 const WX_CACHE_MS = 30 * 60 * 1000;            // 公众号结果复用 30 分钟
@@ -432,8 +438,8 @@ function selectItems(raw, days) {
   const seen = new Set();
   const seenTxt = [];
   const rows = [];
-  // 同一事件多源命中时，优先保留可直达原文的来源（新浪/东财 > 公众号 > Google 跳转）
-  const PRIO = { sina: 0, em: 0, wechat: 1, news: 2 };
+  // 同一事件多源命中时，优先保留微信公众号文章（质量最高），其次直连快讯，最后 Google 跳转
+  const PRIO = { wechat: 0, sina: 1, em: 1, news: 2 };
   const ordered = raw.slice().sort((a, b) => (PRIO[a.via] ?? 2) - (PRIO[b.via] ?? 2));
   for (const it of ordered) {
     const title = String(it.title || '').trim();
