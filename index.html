@@ -6,123 +6,122 @@
 <title>储能产业链 · 实时资讯看板</title>
 <style>
   :root{
-    --bg:#080d18; --panel:#111a2b; --line:#1e2b40;
-    --txt:#e8eefc; --dim:#8fa2bf; --dim2:#5d6f8c;
-    --gold:#f0b429; --cyan:#2dd4ed; --violet:#a78bfa; --green:#34d399; --red:#f87171;
+    --bg:#f4f5f7; --panel:#fff; --line:#e9eaec;
+    --txt:#1f2329; --dim:#5c6470; --dim2:#9199a5;
+    --gold:#b7791f; --cyan:#0b6ea8; --violet:#6d4fc4; --green:#189a6c; --red:#d92b2b;
   }
   *{box-sizing:border-box}
   body{
-    margin:0; background:
-      radial-gradient(1200px 600px at 15% -10%, #16305a55 0%, transparent 60%),
-      radial-gradient(900px 500px at 90% 0%, #0f3b4a44 0%, transparent 55%),
-      var(--bg);
-    color:var(--txt); font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    margin:0; background:var(--bg);
+    color:var(--txt); font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,-apple-system,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;text-decoration:none}
-  code{font-family:Consolas,monospace;font-size:11px;color:#8fb7d8;background:#0e1a29;padding:1px 5px;border-radius:4px}
-  .wrap{max-width:1180px;margin:0 auto;padding:26px 20px 60px}
+  code{font-family:Consolas,monospace;font-size:11px;color:#0b6ea8;background:#f2f4f7;padding:1px 5px;border-radius:3px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 60px;background:#fff;min-height:100vh;box-shadow:0 0 0 1px var(--line)}
 
-  header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
-  .brand{display:flex;gap:14px;align-items:center}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:18px 0 14px;border-bottom:2px solid var(--red)}
+  .brand{display:flex;gap:11px;align-items:center}
   .logo{
-    width:46px;height:46px;border-radius:12px;flex:0 0 auto;
-    background:linear-gradient(145deg,#1b3b6f,#0d2b4a);border:1px solid #2b4f7d;
-    display:grid;place-items:center;font-weight:700;letter-spacing:.5px;color:var(--cyan);font-size:13px;
-    box-shadow:0 0 22px #2dd4ed22 inset;
+    width:40px;height:40px;border-radius:4px;flex:0 0 auto;
+    background:var(--red);
+    display:grid;place-items:center;font-weight:700;letter-spacing:.5px;color:#fff;font-size:13px;
   }
-  h1{font-size:21px;margin:0 0 5px;letter-spacing:.4px;font-weight:650}
+  h1{font-size:20px;margin:0 0 4px;letter-spacing:.2px;font-weight:700;color:#111}
   .sub{margin:0;color:var(--dim);font-size:12.5px}
-  .ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:6px}
+  .ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:4px}
   .status{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);
-    background:#0f1a2b;border:1px solid var(--line);padding:6px 11px;border-radius:20px}
+    background:#f7f8fa;border:1px solid var(--line);padding:5px 10px;border-radius:14px}
   .status i{width:7px;height:7px;border-radius:50%;background:var(--dim2);display:inline-block}
-  .status.live i{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .status.live i{background:var(--green);box-shadow:0 0 6px var(--green)}
   .status.loading i{background:var(--gold);animation:pulse 1s infinite}
   .status.fail i{background:var(--red)}
   @keyframes pulse{50%{opacity:.25}}
   .stamp{font-size:11.5px;color:var(--dim2);font-variant-numeric:tabular-nums}
   button{
-    font:inherit;font-size:12.5px;color:var(--txt);background:#14243a;border:1px solid #26405f;
-    padding:7px 14px;border-radius:8px;cursor:pointer;transition:.18s;
+    font:inherit;font-size:12.5px;color:var(--txt);background:#fff;border:1px solid #d7dae0;
+    padding:6px 13px;border-radius:4px;cursor:pointer;transition:.18s;
   }
-  button:hover{background:#1b3352;border-color:#3a5f8a}
+  button:hover{border-color:var(--red);color:var(--red)}
   button:active{transform:translateY(1px)}
   .auto{font-size:11.5px;color:var(--dim);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
-  .auto input{accent-color:#2dd4ed}
-  select{font:inherit;font-size:12px;background:#14243a;color:var(--txt);border:1px solid #26405f;border-radius:8px;padding:6px 8px}
+  .auto input{accent-color:var(--red)}
+  select{font:inherit;font-size:12px;background:#fff;color:var(--txt);border:1px solid #d7dae0;border-radius:4px;padding:5px 8px}
 
-  h2{font-size:14px;letter-spacing:.6px;color:#cfe0f5;margin:26px 0 12px;font-weight:600}
-  h2 .en{color:var(--dim2);font-weight:400;font-size:11px;margin-left:8px;letter-spacing:1px}
-  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-  .ins{background:#0f1826;border:1px solid var(--line);border-radius:12px;padding:14px 15px}
-  .ins h3{margin:0 0 8px;font-size:13px;color:#fff;display:flex;gap:7px;align-items:center}
-  .ins p{margin:0;font-size:12.3px;line-height:1.65;color:#b9c8de}
-  .ins .num{color:var(--cyan);font-variant-numeric:tabular-nums}
+  h2{font-size:14.5px;letter-spacing:.3px;color:#111;margin:24px 0 12px;font-weight:700;border-left:3px solid var(--red);padding-left:9px;line-height:1.1}
+  h2 .en{color:var(--dim2);font-weight:400;font-size:11px;margin-left:8px;letter-spacing:.5px}
+  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .ins{background:#fafbfc;border:1px solid var(--line);border-radius:4px;padding:13px 14px}
+  .ins h3{margin:0 0 8px;font-size:13px;color:#111;display:flex;gap:7px;align-items:center}
+  .ins p{margin:0;font-size:12.3px;line-height:1.7;color:#42484f}
+  .ins .num{color:var(--red);font-variant-numeric:tabular-nums}
 
-  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:28px 0 14px}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap}
-  .tab{padding:7px 13px;border-radius:9px;font-size:12.5px;color:var(--dim);border:1px solid transparent;cursor:pointer;transition:.18s;background:#0d1523}
-  .tab:hover{color:#dbe8ff;background:#131f31}
-  .tab.on{background:#17263c;color:#fff;border-color:#33507a}
-  .tab .n{color:var(--dim2);font-size:11px;margin-left:5px}
-  .sortseg{display:flex;gap:2px;padding:2px;background:#0d1523;border:1px solid #22344c;border-radius:9px}
-  .seg{font:inherit;font-size:12px;color:var(--dim);background:transparent;border:0;border-radius:7px;
-    padding:6px 11px;cursor:pointer;transition:.18s;white-space:nowrap}
-  .seg:hover{color:#dbe8ff;background:#131f31}
-  .seg.on{background:#1b3050;color:#fff}
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:26px 0 9px;border-bottom:1px solid var(--line)}
+  .tabs{display:flex;gap:2px;flex-wrap:wrap}
+  .tab{padding:9px 12px 8px;font-size:13px;color:var(--dim);cursor:pointer;transition:.18s;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:#111}
+  .tab.on{color:var(--red);border-bottom-color:var(--red);font-weight:600}
+  .tab .n{color:var(--dim2);font-size:11px;margin-left:4px}
+  .sortseg{display:flex;gap:0;border:1px solid #d7dae0;border-radius:3px;overflow:hidden}
+  .seg{font:inherit;font-size:12px;color:var(--dim);background:#fff;border:0;border-right:1px solid #e5e7eb;
+    padding:5px 10px;cursor:pointer;transition:.18s;white-space:nowrap}
+  .seg:last-child{border-right:0}
+  .seg:hover{color:var(--red)}
+  .seg.on{background:var(--red);color:#fff}
   .seg:focus{outline:none}
-  .seg:focus-visible{outline:1px solid #3a5f8a;outline-offset:1px}
-  .amt-chip{font-size:10.5px;color:var(--gold);border:1px solid #f0b42955;background:#f0b42911;
-    border-radius:5px;padding:1.5px 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .seg:focus-visible{outline:1px solid var(--red);outline-offset:1px}
+  .amt-chip{font-size:10.5px;color:var(--gold);border:1px solid #e8d5a8;background:#fdf8ee;
+    border-radius:3px;padding:1.5px 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
   input[type=search]{
-    font:inherit;font-size:12.5px;color:var(--txt);background:#0d1523;border:1px solid #22344c;
-    border-radius:9px;padding:8px 12px;min-width:230px;outline:none
+    font:inherit;font-size:12.5px;color:var(--txt);background:#fff;border:1px solid #d7dae0;
+    border-radius:4px;padding:6px 11px;min-width:210px;outline:none
   }
-  input[type=search]::placeholder{color:#5b6c86}
-  input[type=search]:focus{border-color:#3a5f8a}
+  input[type=search]::placeholder{color:#a8afb9}
+  input[type=search]:focus{border-color:var(--red)}
 
-  .day{margin:22px 0 10px;display:flex;align-items:center;gap:10px}
-  .day .d{font-size:12.5px;color:#cfe0f5;font-weight:600}
+  .day{margin:20px 0 8px;display:flex;align-items:center;gap:9px}
+  .day .d{font-size:13px;color:#111;font-weight:700}
   .day .w{font-size:11px;color:var(--dim2)}
-  .day .ln{flex:1;height:1px;background:linear-gradient(90deg,#22344c,transparent)}
+  .day .ln{flex:1;height:1px;background:linear-gradient(90deg,#e5e7eb,transparent)}
   .day .cnt{font-size:11px;color:var(--dim2)}
   .card{
-    background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid var(--line);border-left:3px solid var(--c,#2a3b52);
-    border-radius:11px;padding:13px 16px;margin-bottom:10px;transition:.18s;
-    animation:fadeIn .35s ease both;
+    background:#fff;border:1px solid var(--line);border-left:3px solid var(--c,#c9ced6);
+    border-radius:3px;padding:12px 15px;margin-bottom:9px;transition:.18s;
+    animation:fadeIn .3s ease both;
   }
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .card:hover{border-color:#33507a;border-left-color:var(--c);transform:translateX(2px);background:#121e30}
-  .crow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
-  .chip{font-size:10.5px;padding:2.5px 8px;border-radius:6px;border:1px solid;letter-spacing:.5px}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .card:hover{border-color:#d7dae0;border-left-color:var(--c);background:#fcfcfd;box-shadow:0 1px 3px rgba(16,24,40,.06)}
+  .crow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .chip{font-size:10.5px;padding:2px 7px;border-radius:3px;border:1px solid;letter-spacing:.3px}
   .meta{font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums}
-  .mini{font-size:9.5px;color:var(--dim2);border:1px solid #233448;border-radius:5px;padding:1.5px 5px}
-  .mini.wx{color:#34d399;border-color:#34d39955;background:#34d39911}
-  .card h4{margin:0 0 6px;font-size:14.5px;line-height:1.5;font-weight:600}
-  .card:hover h4{color:#fff}
-  .note{font-size:12.2px;line-height:1.65;color:#9db0ca;margin:0}
-  .note b{color:#cfe0f5;font-weight:500}
-  .src{font-size:11px;color:var(--dim2);margin-top:8px}
-  .src a{color:#5aa7d4}
-  .src a:hover{text-decoration:underline}
+  .mini{font-size:9.5px;color:var(--dim2);border:1px solid #e2e5ea;border-radius:3px;padding:1.5px 5px}
+  .mini.wx{color:#189a6c;border-color:#bfe3d2;background:#f2fbf7}
+  .mini.direct{color:#0b6ea8;border-color:#bfdcf0;background:#f2f8fd}
+  .mini.ggl{color:#9199a5;border-color:#e2e5ea;background:#fafbfc}
+  .card h4{margin:0 0 5px;font-size:15px;line-height:1.55;font-weight:600;color:#111}
+  .card:hover h4{color:#000}
+  .note{font-size:12.4px;line-height:1.7;color:#4b5158;margin:0}
+  .note b{color:#111;font-weight:600}
+  .src{font-size:11.5px;color:var(--dim2);margin-top:7px}
+  .src a{color:#0b6ea8}
+  .src a:hover{text-decoration:underline;color:var(--red)}
   .empty{padding:40px 0;text-align:center;color:var(--dim2);font-size:13px}
   .empty button{margin-top:12px}
 
   .ins{cursor:pointer;transition:.18s}
-  .ins:hover{border-color:#33507a;background:#122033;transform:translateY(-1px)}
+  .ins:hover{border-color:#d7dae0;background:#f5f7f9;box-shadow:0 1px 3px rgba(16,24,40,.05)}
   .ins h3 .n{font-size:10.5px;color:var(--dim2);font-weight:400;margin-left:auto}
-  .tk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-  .tk li{font-size:12.3px;line-height:1.55;color:#cfdcee}
-  .tk-amt{margin-top:9px;padding-top:8px;border-top:1px dashed #22344c;font-size:11px;color:var(--dim)}
+  .tk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .tk li{font-size:12.3px;line-height:1.6;color:#42484f}
+  .tk-amt{margin-top:8px;padding-top:7px;border-top:1px dashed #e5e7eb;font-size:11px;color:var(--dim)}
   .tk-empty{color:var(--dim2);font-size:12px;margin:0}
-  .amt{font-style:normal;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
-  .new{font-size:9.5px;color:#34d399;border:1px solid #34d39955;background:#34d39911;border-radius:5px;padding:1.5px 5px;letter-spacing:.5px}
-  mark{background:#f0b42933;color:#ffe9b0;border-radius:3px;padding:0 2px}
-  .status.stale i{background:var(--gold);box-shadow:0 0 8px #f0b42988}
+  .amt{font-style:normal;color:var(--red);font-weight:600;font-variant-numeric:tabular-nums}
+  .new{font-size:9.5px;color:#189a6c;border:1px solid #bfe3d2;background:#f2fbf7;border-radius:3px;padding:1.5px 5px;letter-spacing:.3px}
+  mark{background:#fff1b8;color:#7a5200;border-radius:2px;padding:0 2px}
+  .status.stale i{background:var(--gold);box-shadow:0 0 6px #b7791f88}
 
-  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim2);font-size:11.5px;line-height:1.85}
-  footer b{color:#94a9c6;font-weight:500}
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim2);font-size:11.5px;line-height:1.85}
+  footer b{color:#42484f;font-weight:600}
   @media (max-width:980px){
     .grid4{grid-template-columns:repeat(2,1fr)}
   }
@@ -173,7 +172,7 @@
     <div><b>数据口径</b>：北京时间为准的滚动时窗；信息源为 Google News RSS 中文频道，47 组检索式（并购/基金/增资/股权转让/IPO + 扩产/投产/开工/中标/订单/技术/量产/政策/电价/出海/价格 等）×「产业链词 + 动作词」双重过滤 × 标题归一化 + 二元组近似去重，并按 9 类自动归档。</div>
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 60 秒自动刷新，手动刷新会等待最新一轮抓取；上游结果缓存 10 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
     <div><b>展示逻辑</b>：按所选时窗统一过滤并按时间倒序分组；时间轴支持「按时间 / 按金额」切换，金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组、按时间排在后面；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
-    <div><b>数据源</b>：Google News RSS 中文频道 + 微信公众号（搜狗微信搜索，带「公众号」标记）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
+    <div><b>数据源</b>：新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ 微信公众号（带「公众号」标记）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停并沿用上次结果。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -255,17 +254,17 @@ const NOTES = [
 ];
 
 const CATS = {
-  all:  {label:"全部",        c:"#7f93b3"},
-  fund: {label:"设立基金",    c:"#f0b429"},
-  mna:  {label:"收并购",      c:"#2dd4ed"},
-  jv:   {label:"合资/合作",    c:"#a78bfa"},
-  ipo:  {label:"上市/融资",    c:"#34d399"},
-  cap:  {label:"扩产/项目",    c:"#fb923c"},
-  tech: {label:"技术/产品",    c:"#38bdf8"},
-  policy:{label:"政策/标准",   c:"#f472b6"},
-  industry:{label:"行业/市场", c:"#94a3b8"},
-  risk: {label:"出清/风险",    c:"#f87171"},
-  other:{label:"其他动态",    c:"#7f93b3"}
+  all:  {label:"全部",        c:"#4a5a72"},
+  fund: {label:"设立基金",    c:"#b7791f"},
+  mna:  {label:"收并购",      c:"#0e8ba3"},
+  jv:   {label:"合资/合作",    c:"#6d4fc4"},
+  ipo:  {label:"上市/融资",    c:"#1a8f5f"},
+  cap:  {label:"扩产/项目",    c:"#c2410c"},
+  tech: {label:"技术/产品",    c:"#0b6ea8"},
+  policy:{label:"政策/标准",   c:"#b8336a"},
+  industry:{label:"行业/市场", c:"#64748b"},
+  risk: {label:"出清/风险",    c:"#c02626"},
+  other:{label:"其他动态",    c:"#64748b"}
 };
 const WEEK = ["周日","周一","周二","周三","周四","周五","周六"];
 
@@ -501,6 +500,8 @@ function render(){
     const tags = [];
     if(live && it._src==="snapshot") tags.push(`<span class="mini" title="该条来自页面内置快照，实时源本轮未覆盖到">预置</span>`);
     if(it.via==="wechat") tags.push(`<span class="mini wx" title="来源为微信公众号（搜狗微信搜索），点击下方原文跳转">公众号</span>`);
+    if(it.via==="sina" || it.via==="em") tags.push(`<span class="mini direct" title="来自新浪财经/东方财富快讯，原文链接国内可直接打开">直达</span>`);
+    if((!it.via || it.via==="news") && it._src!=="snapshot") tags.push(`<span class="mini ggl" title="经 Google News 聚合，国内打开可能较慢">聚合</span>`);
     if(it._new) tags.push(`<span class="new">NEW</span>`);
     const amt = byAmount ? amountText(it) : "";
     const amtTag = byAmount
@@ -538,7 +539,7 @@ function updateFreshness(){
   if(!live) return;
   const vis = visibleItems();
   const nNew = vis.filter(i=>i._new).length;
-  const extra = (nNew ? ` · +${nNew} 新` : "") + (meta.wechatCount ? ` · 公众号 ${meta.wechatCount} 条` : "");
+  const extra = (nNew ? ` · +${nNew} 新` : "") + (meta.directCount ? ` · 直达 ${meta.directCount} 条` : "") + (meta.wechatCount ? ` · 公众号 ${meta.wechatCount} 条` : "");
   if(Date.now() - lastErrorAt < 120e3){ setStatus("fail", "刷新失败/超时 · 保留上次结果"); return; }
   const age = Date.now() - tsOf({pubDate: meta.fetchedAt});
   if(age > 90*60e3) setStatus("stale", `缓存数据 · ${vis.length} 条${extra}`);
@@ -577,7 +578,7 @@ async function loadLive(silent, force){
     // 实时源没覆盖到、但仍在当前时窗内的内置条目，继续保留（标记“预置”）
     const keepOld = items.filter(i=> i._src==="snapshot" && inWindow(i) && !fresh.some(f=>keyOf(f.title)===keyOf(i.title)));
     items = fresh.concat(keepOld);
-    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0};
+    meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0, directCount: data.direct || 0};
     live = true;
     lastErrorAt = 0;
     updateFreshness();

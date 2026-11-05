@@ -101,6 +101,8 @@ const WX_BLOCK_BACKOFF_MS = 45 * 60 * 1000;    // 触发验证码后退避 45 �
 const WX_CACHE_FILE = path.join(ROOT, 'wx_cache.json');
 
 const RE_CHAIN = /储能|新型储能|锂电|锂电池|锂离子|钠离子|钠电|固态电池|半固态|液流|钒电池|压缩空气|飞轮储能|氢储|电芯|电池包|PACK|BMS|EMS|PCS|变流器|逆变器|光储|光伏|风电|氢能|充电桩|超充|换电|虚拟电厂|微电网|源网荷储|电力现货|容量电价|正极|负极|电解液|隔膜|结构件|铜箔|铝箔|电池回收|梯次利用|热管理|温控|消防|储能电站|工商业储能|户用储能|独立储能|共享储能/;
+// 直连快讯源（新浪/东财）标题长、泛词多，用更严格的产业链主干词收口，避免"消防/监管"等误命中
+const RE_CORE = /储能|锂电|锂电池|锂离子|钠离子|钠电|固态电池|半固态|液流|钒电池|压缩空气|飞轮|氢储|电芯|电池|PACK|BMS|EMS|PCS|变流器|逆变器|光储|光伏|风电|氢能|超充|换电|虚拟电厂|微电网|源网荷储|电力现货|容量电价|正极|负极|电解液|隔膜|结构件|铜箔|铝箔|梯次利用|热管理|温控|储能电站|独立储能|共享储能/;
 const RE_COMPANY = /宁德时代|比亚迪|亿纬|国轩|中创新航|欣旺达|海辰|鹏辉|南都电源|派能|沃太|艾罗|德业|锦浪|固德威|科华|上能电气|盛弘|禾望|英维克|申菱|同飞|高澜|阳光电源|天合光能|阿特斯|晶科|隆基|通威|协鑫|天能|超威|南孚|珠海冠宇|力神|瑞浦|兰钧|蜂巢|远景|双一力|精控|许继|平高|四方|南网科技|禾迈|正泰|思源|科陆|林洋|智光|中天科技|亨通|国电南瑞|特变电工|海博思创|双登|雄韬|中国电建|中国能建|三峡能源|中广核|晶澳|东方日升/;
 const RE_NOISE = /ETF|份额|盘中|涨停|跌停|股价|行情|评级|研报|股吧|期货|指数|招聘|持仓|重仓|成交额|换手|估值锚点|月销|销量|锁单|SUV|早参|晚报|速览|盘点|直播|风电场|涨\d|跌\d|主力资金|净买入|净卖出|龙虎榜|融资余额|增仓|减仓|资金流向|资金净/;
 const RE_NONWORD = /[^\u4e00-\u9fa5A-Za-z0-9]/g;
@@ -227,6 +229,80 @@ async function fetchAll(days) {
     await sleep(FETCH_GAP_MS);
   }
   return raw;
+}
+
+/* ---------------- 直连源：新浪财经 7×24 + 东方财富快讯 ---------------- */
+
+const stripTags = s => decodeEntities(String(s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+
+function buildHeadline(text) {
+  const t = stripTags(text);
+  const m = t.match(/^【([^】]{6,60})】/);
+  if (m) return m[1].trim();
+  const cut = t.split(/[。！？]/)[0];
+  return (cut.length >= 8 ? cut : t).slice(0, 64);
+}
+
+const cnMs = s => {
+  const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/);
+  if (!m) return NaN;
+  return Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4]}+08:00`);
+};
+
+async function fetchSinaZhibo(days) {
+  const out = [];
+  const cutoff = Date.now() - Math.min(days, 1.5) * 24 * 3600 * 1000;
+  const maxPage = 8;
+  for (let p = 1; p <= maxPage; p++) {
+    const url = `https://zhibo.sina.com.cn/api/zhibo/feed?page=${p}&page_size=100&zhibo_id=152&tag_id=0&dire=f&dpc=1`;
+    let txt;
+    try { txt = await httpGet(url, 0, { 'User-Agent': UA }); } catch (e) { console.warn(`[sina] p${p} failed: ${e.message}`); break; }
+    let data;
+    try { data = JSON.parse(txt); } catch (e) { console.warn('[sina] bad json'); break; }
+    const list = (data && data.result && data.result.data && data.result.data.feed && data.result.data.feed.list) || [];
+    if (!list.length) break;
+    let oldest = Infinity;
+    for (const x of list) {
+      const ts = cnMs(x.create_time);
+      if (!Number.isFinite(ts)) continue;
+      oldest = Math.min(oldest, ts);
+      const text = stripTags(x.rich_text);
+      if (text.length < 12) continue;
+      out.push({ title: buildHeadline(text), link: x.docurl || '', source: '新浪财经', ts, via: 'sina', query: 'sina7x24' });
+    }
+    if (oldest < cutoff) break;
+    await sleep(400);
+  }
+  return out;
+}
+
+async function fetchEmKx(days) {
+  const out = [];
+  const cutoff = Date.now() - Math.min(days, 1.5) * 24 * 3600 * 1000;
+  const maxPage = 6;
+  for (let p = 1; p <= maxPage; p++) {
+    const url = `https://newsapi.eastmoney.com/kuaixun/v1/getlist_102_ajaxResult_100_${p}_.html`;
+    let txt;
+    try { txt = await httpGet(url, 0, { 'User-Agent': UA }); } catch (e) { console.warn(`[em] p${p} failed: ${e.message}`); break; }
+    let data;
+    try {
+      data = JSON.parse(txt.replace(/^\s*var\s+ajaxResult\s*=\s*/, '').replace(/;\s*$/, ''));
+    } catch (e) { console.warn('[em] bad json'); break; }
+    const list = (data && data.LivesList) || [];
+    if (!list.length) break;
+    let oldest = Infinity;
+    for (const x of list) {
+      const ts = cnMs(x.showtime);
+      if (!Number.isFinite(ts)) continue;
+      oldest = Math.min(oldest, ts);
+      const title = stripTags(x.title) || buildHeadline(x.digest);
+      if (title.length < 8) continue;
+      out.push({ title, link: x.url_unique || '', source: '东方财富', ts, via: 'em', query: 'emkx' });
+    }
+    if (oldest < cutoff) break;
+    await sleep(400);
+  }
+  return out;
 }
 
 /* ---------------- 公众号（搜狗微信搜索） ---------------- */
@@ -356,12 +432,17 @@ function selectItems(raw, days) {
   const seen = new Set();
   const seenTxt = [];
   const rows = [];
-  for (const it of raw) {
+  // 同一事件多源命中时，优先保留可直达原文的来源（新浪/东财 > 公众号 > Google 跳转）
+  const PRIO = { sina: 0, em: 0, wechat: 1, news: 2 };
+  const ordered = raw.slice().sort((a, b) => (PRIO[a.via] ?? 2) - (PRIO[b.via] ?? 2));
+  for (const it of ordered) {
     const title = String(it.title || '').trim();
-    const isWx = it.via === 'wechat';
     if (title.length < 8) continue;
+    if (!/^https?:\/\//.test(String(it.link || ''))) continue;   // 没有可点开的原文链接就不展示
     if (RE_NOISE.test(title)) continue;
-    if (!RE_CHAIN.test(title) && !RE_COMPANY.test(title)) continue;
+    const directSrc = it.via === 'sina' || it.via === 'em';
+    const relevant = directSrc ? RE_CORE.test(title) : (RE_CHAIN.test(title) || RE_COMPANY.test(title));
+    if (!relevant) continue;
     const ms = Number.isFinite(it.ts) ? it.ts : Date.parse(it.pubDate);
     if (!Number.isFinite(ms) || ms < from) continue;
     if (ms > Date.now() + 3600 * 1000) continue;   // 过滤公众号搜索结果里的异常未来时间
@@ -397,7 +478,7 @@ function selectItems(raw, days) {
       date: cnParts(ms).date,
       ts: ms,
       cat: classify(clean),
-      via: isWx ? 'wechat' : 'news',
+      via: it.via || 'news',
       query: it.query
     });
   }
@@ -446,9 +527,11 @@ function ensureRefresh(days) {
 
 async function runRefresh(days) {
   lastAttemptAt = Date.now();
-  // Google News 与公众号并行抓取，互不阻塞
-  const [newsRaw, wxRaw] = await Promise.all([fetchAll(days), fetchWechat()]);
-  const raw = newsRaw.concat(wxRaw);
+  // Google News、公众号、直连快讯源并行抓取，互不阻塞
+  const [newsRaw, wxRaw, sinaRaw, emRaw] = await Promise.all([
+    fetchAll(days), fetchWechat(), fetchSinaZhibo(days), fetchEmKx(days)
+  ]);
+  const raw = newsRaw.concat(wxRaw, sinaRaw, emRaw);
   const items = selectItems(raw, days);
   if (!items.length) {
     lastError = `上游返回 ${raw.length} 条，过滤后为 0`;
@@ -458,6 +541,7 @@ async function runRefresh(days) {
   const counts = {};
   for (const i of items) counts[i.cat] = (counts[i.cat] || 0) + 1;
   const wechatCount = items.filter(i => i.via === 'wechat').length;
+  const directCount = items.filter(i => i.via === 'sina' || i.via === 'em').length;
   const payload = {
     ok: true,
     fetchedAt: cnParts(Date.now()).full,
@@ -466,11 +550,12 @@ async function runRefresh(days) {
     count: items.length,
     counts,
     wechat: { ok: lastWechat.ok, raw: lastWechat.raw, count: wechatCount, error: lastWechat.error || '' },
+    direct: directCount,
     items
   };
   caches.set(days, { payload, at: Date.now() });
   lastError = '';
-  console.log(`[refresh] days=${days} ok: ${items.length} items (公众号 ${wechatCount}) / raw ${raw.length}`);
+  console.log(`[refresh] days=${days} ok: ${items.length} items (公众号 ${wechatCount} / 直达 ${directCount}) / raw ${raw.length}`);
 }
 
 /* ---------------- HTTP 服务 ---------------- */
@@ -575,4 +660,4 @@ if (require.main === module) {
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
 
-module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat };
+module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat, fetchSinaZhibo, fetchEmKx };
