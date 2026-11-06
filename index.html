@@ -122,6 +122,10 @@
   .src a:hover{text-decoration:underline;color:var(--red)}
   .empty{padding:40px 0;text-align:center;color:var(--dim2);font-size:13px}
   .empty button{margin-top:12px}
+  .hotnote{background:#fff6f6;border:1px solid #f2c6c6;border-left:3px solid var(--red);border-radius:3px;padding:9px 14px;margin:0 0 12px;font-size:12.5px;color:#8c2b2b}
+  .hotnote b{color:var(--red);font-weight:700}
+  .hotnote a.hotjump{color:var(--red);font-weight:600;border-bottom:1px solid var(--red);padding-bottom:1px}
+  .hotnote a.hotjump:hover{color:#b71c1c;border-bottom-color:#b71c1c}
   .wxpanel{border:1px solid var(--line);border-left:3px solid var(--green);border-radius:3px;padding:16px 18px;margin:6px 0 10px;background:#fbfcfd}
   .wxpanel h3{margin:0 0 8px;font-size:14px;color:#111;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .wxpanel h3 .n{font-size:11px;color:var(--dim2);font-weight:400}
@@ -536,7 +540,8 @@ function render(){
 
   let list = vis.slice();
   if(filterCat==="hot") list = list.filter(i=>i.hot);
-  else if(filterCat!=="all") list = list.filter(i=>i.cat===filterCat);
+  else if(filterCat==="all") list = list.filter(i=>!i.hot);   // 加红头条单独归入「加红」栏目，全部里不重复出现
+  else list = list.filter(i=>i.cat===filterCat);
   if(keyword){
     const kw = keyword.toLowerCase();
     list = list.filter(i=>{
@@ -554,6 +559,12 @@ function render(){
     list.sort((a,b)=> (tsOf(b)-tsOf(a)) || (catRank(a.cat)-catRank(b.cat)));
   }
 
+  // 「全部」里不再重复出现热稿，改为顶部提示条一键跳到「加红」栏目
+  let hotNotice = "";
+  if(filterCat==="all" && hotTotal>0 && !keyword){
+    hotNotice = `<div class="hotnote">已把 <b>${hotTotal}</b> 条热点资讯单独归入 <a href="#" class="hotjump">「加红」栏目</a>（点击查看，更快浏览）</div>`;
+  }
+
   if(!list.length){
     document.getElementById("list").innerHTML = wxOnly ? wxTopicPanel() : `<div class="empty">当前筛选下暂无线索，试着切换分类或清空搜索词。${(keyword||filterCat!=="all")?`<br><button id="btnReset">清空筛选</button>`:""}</div>`;
     const btnReset = document.getElementById("btnReset");
@@ -564,7 +575,7 @@ function render(){
     };
     return;
   }
-  let html = "", curDay = "";
+  let html = hotNotice, curDay = "";
   const byAmount = (sortMode === "amount");
   const byQuality = (sortMode === "quality");
   const withAmt = byAmount ? list.filter(i=>amountOf(i) > 0).length : list.length;
@@ -731,6 +742,14 @@ document.getElementById("tabs").addEventListener("click", e=>{
   if(!t) return;
   filterCat = t.dataset.cat;
   render();
+});
+document.getElementById("list").addEventListener("click", e=>{
+  const a = e.target.closest(".hotjump");
+  if(!a) return;
+  e.preventDefault();
+  filterCat = "hot";
+  render();
+  window.scrollTo({top:0, behavior:"smooth"});
 });
 document.getElementById("sortSeg").addEventListener("click", e=>{
   const b = e.target.closest(".seg");
