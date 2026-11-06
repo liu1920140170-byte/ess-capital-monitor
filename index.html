@@ -61,6 +61,9 @@
   .tab{padding:9px 12px 8px;font-size:13px;color:var(--dim);cursor:pointer;transition:.18s;border-bottom:2px solid transparent;margin-bottom:-1px}
   .tab:hover{color:#111}
   .tab.on{color:var(--red);border-bottom-color:var(--red);font-weight:600}
+  .tab.hot-tab{color:var(--red);font-weight:600}
+  .tab.hot-tab:hover{color:#b71c1c}
+  .tab.hot-tab .n{color:#e08a8a}
   .tab .n{color:var(--dim2);font-size:11px;margin-left:4px}
   .sortseg{display:flex;gap:0;border:1px solid #d7dae0;border-radius:3px;overflow:hidden}
   .seg{font:inherit;font-size:12px;color:var(--dim);background:#fff;border:0;border-right:1px solid #e5e7eb;
@@ -198,7 +201,7 @@
     <div><b>更新机制</b>：通过服务端 <code>/api/news</code> 接口抓取（规避浏览器跨域），支持本地 <code>serve.ps1</code> 与云端 <code>server.js</code>（Render / Node.js 20）；页面默认每 30 分钟自动刷新（右上角显示倒计时），手动刷新会强制重抓；上游结果缓存 30 分钟、抓取后台执行，云端用仓库内置快照兜底，上游临时不可用时仍可展示真实历史结果；直接用浏览器打开本地文件时展示的是页面内置快照。</div>
     <div><b>展示逻辑</b>：默认「按时间」全量滚动，所有资讯都展示，热度 ≥3 的条目在左侧热度列标红（红字标题 + 红色「热」方标），不隐藏任何资讯；可切「按质量」（公众号原文 → 储能垂直媒体深度稿 → 直达快讯 → 聚合转载）或「按金额」；金额取标题中的金额线索（如 “25.2亿”“8.44亿元”，非交易总额），未披露金额的条目单独分组；同一事件若公众号与快讯同时命中，优先展示公众号版本；勾选「只看公众号」可滤出微信公众号深度文章，其余条目附「微信找原文」按标题直达公众号搜索；「动态主线」按各类别条数自动选出主线，并抽取标题中的金额/持股比例；分类页签、主线卡片均可点击筛选，新到条目以 NEW 标记；刷新失败时保留上一次结果并标注状态。</div>
     <div><b>数据源</b>：微信公众号（带「公众号」标记，云端后台每 40 秒 1 个检索式慢速累积）+ 北极星储能网（带「深度」标记，储能垂直媒体编辑稿）+ 新浪财经 7×24 快讯 + 东方财富快讯（带「直达」标记，原文链接国内可直接打开）+ Google News RSS 中文频道（带「聚合」标记，国内打开可能较慢）。公众号源受搜狗频率限制，触发验证码时暂停 20 分钟并保留已抓到的结果。</div>
-    <div><b>热度列</b>（参照财联社）：每张卡片左侧一列显示热度分，分数 ≥3 的标红——红色「热」方标 + 红字标题 + 红边卡片；其余条目全部照常展示（默认「按时间」全量滚动，不做过滤）。评分规则：同一事件被 2 家来源报道 +2（≥3 家 +3）、标题金额 ≥10 亿 +2（≥1 亿 +1）、含强信号词（重磅/首次/爆发/落地/百亿…）+1、政策/资本类 +1、公众号/深度源 +1；鼠标悬停热度列可看具体打分依据。各数据源不提供统一阅读量，故以「多源命中 + 体量 + 信号强度」近似阅读热度。</div>
+    <div><b>热度与加红栏目</b>（参照财联社）：分类页签第一排有独立的「加红」栏目（红字，显示条数），只列热度分的头条；卡片左侧热度列显示分数，≥3 分标红——红色「热」方标 + 红字标题 + 红边卡片；其余资讯全部照常展示（默认「按时间」全量滚动，不做过滤）。评分规则：同一事件被 2 家来源报道 +2（≥3 家 +3）、标题金额 ≥10 亿 +2（≥1 亿 +1）、含强信号词（重磅/首次/爆发/落地/百亿…）+1、政策/资本类 +1、公众号/深度源 +1；鼠标悬停热度列可看具体打分依据。各数据源不提供统一阅读量，故以「多源命中 + 体量 + 信号强度」近似阅读热度。</div>
     <div><b>已知局限</b>：均为标题级信息，未逐篇核验全文；金额、持股比例、时间表请以交易所公告与公司披露为准；聚合源可能漏检巨潮/交易所公告与部分垂直媒体；"16 年储能企业破产"一条原文标题未点名公司，标注为待核实。</div>
     <div><b>免责声明</b>：本页仅作研究参考，不构成任何投资建议。</div>
   </footer>
@@ -515,11 +518,12 @@ function render(){
   const wxTxt = document.getElementById("wxOnlyTxt");
   if(wxTxt) wxTxt.textContent = `只看公众号（${wxTotal}）`;
 
-  const tabKeys = ["all","fund","mna","jv","ipo","cap","tech","policy","industry","risk"];
+  const hotTotal = vis.filter(i=>i.hot).length;
+  const tabKeys = ["all","hot","fund","mna","jv","ipo","cap","tech","policy","industry","risk"];
   if(counts.other) tabKeys.push("other");
   const tabs = tabKeys.map(k=>{
-    const n = counts[k]||0;
-    return `<div class="tab ${filterCat===k?"on":""}" data-cat="${k}">${catOf(k).label}<span class="n">${n}</span></div>`;
+    const n = k==="hot" ? hotTotal : (counts[k]||0);
+    return `<div class="tab${k==="hot"?" hot-tab":""} ${filterCat===k?"on":""}" data-cat="${k}">${k==="hot"?"加红":catOf(k).label}<span class="n">${n}</span></div>`;
   }).join("");
   document.getElementById("tabs").innerHTML = tabs;
   document.querySelectorAll("#sortSeg .seg").forEach(b=>{
@@ -531,7 +535,8 @@ function render(){
   renderBrief(vis);
 
   let list = vis.slice();
-  if(filterCat!=="all") list = list.filter(i=>i.cat===filterCat);
+  if(filterCat==="hot") list = list.filter(i=>i.hot);
+  else if(filterCat!=="all") list = list.filter(i=>i.cat===filterCat);
   if(keyword){
     const kw = keyword.toLowerCase();
     list = list.filter(i=>{
