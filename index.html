@@ -56,16 +56,16 @@
   .ins p{margin:0;font-size:12.3px;line-height:1.7;color:#42484f}
   .ins .num{color:var(--red);font-variant-numeric:tabular-nums}
 
-  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;margin:24px 0 14px;background:#223049;border-radius:4px;padding:3px 14px}
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;margin:22px 0 8px;border-bottom:1px solid var(--line)}
   .tabs{display:flex;gap:2px;flex-wrap:wrap;align-items:stretch}
-  .tab{padding:13px 13px 10px;font-size:13.5px;color:#c6d0e0;cursor:pointer;transition:.18s;border-bottom:3px solid transparent}
-  .tab:hover{color:#fff}
-  .tab.on{color:#fff;font-weight:600;border-bottom-color:#ff7a45}
-  .tab.hot-tab{color:#ff9f72;font-weight:600}
-  .tab.hot-tab:hover{color:#ffb48a}
-  .tab.hot-tab.on{color:#fff;border-bottom-color:#ff7a45}
-  .tab .n{color:#8a97ab;font-size:11px;margin-left:4px;font-weight:400}
-  .toolbar .auto{color:#c6d0e0}
+  .tab{padding:11px 14px 9px;font-size:13.5px;color:var(--dim);cursor:pointer;transition:.18s;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:#111}
+  .tab.on{color:var(--red);font-weight:600;border-bottom-color:var(--red)}
+  .tab.hot-tab{color:var(--red);font-weight:600}
+  .tab.hot-tab:hover{color:#b71c1c}
+  .tab.hot-tab.on{color:var(--red);border-bottom-color:var(--red)}
+  .tab .n{color:var(--dim2);font-size:11px;margin-left:4px;font-weight:400}
+  .toolbar .auto{color:var(--dim)}
   .sortseg{display:flex;gap:0;border:1px solid #d7dae0;border-radius:3px;overflow:hidden}
   .seg{font:inherit;font-size:12px;color:var(--dim);background:#fff;border:0;border-right:1px solid #e5e7eb;
     padding:5px 10px;cursor:pointer;transition:.18s;white-space:nowrap}
@@ -96,7 +96,7 @@
   @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   .card:hover{border-color:#d7dae0;border-left-color:var(--c);background:#fcfcfd;box-shadow:0 1px 3px rgba(16,24,40,.06)}
   .crow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-  .chip{font-size:10.5px;padding:2px 7px;border-radius:3px;border:1px solid;letter-spacing:.3px}
+  .chip{font-size:10.5px;padding:2px 8px;border-radius:3px;border:1px solid #e5e7eb;letter-spacing:.3px;color:#5c6470;background:#f7f8fa;white-space:nowrap}
   .meta{font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums}
   .mini{font-size:9.5px;color:var(--dim2);border:1px solid #e2e5ea;border-radius:3px;padding:1.5px 5px}
   .mini.wx{color:#189a6c;border-color:#bfe3d2;background:#f2fbf7}
@@ -168,7 +168,7 @@
       <div class="logo">ESS</div>
       <div>
         <h1>储能产业链 · 实时资讯看板</h1>
-        <p class="sub">扩产/项目 · 技术/产品 · 政策/标准 · 资本运作 · 行业市场 —— 全链条滚动追踪</p>
+        <p class="sub">储能全产业链 · 资本运作 / 项目 / 政策 / 技术 实时追踪</p>
       </div>
     </div>
     <div class="ctrl">
@@ -625,11 +625,11 @@ function render(){
       ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
       : "";
     const wxSearch = ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
-    html += `<div class="card${isHot ? " hot" : ""}" style="--c:${c};animation-delay:${Math.min(idx*20,240)}ms">
+    html += `<div class="card${isHot ? " hot" : ""}" style="--c:#c9ced6;animation-delay:${Math.min(idx*20,240)}ms">
       <div class="hcol${isHot ? " on" : ""}" title="${heatReason(it)}"><b>${isHot ? it.heat : "·"}</b><span>${isHot ? "热" : "热度"}</span></div>
       <div class="cbody">
       <div class="crow">
-        <span class="chip" style="color:${c};border-color:${c}55;background:${c}11">${catOf(it.cat).label}</span>
+        <span class="chip">${catOf(it.cat).label}</span>
         ${tags.join("")}
         ${amtTag}
         <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"} · ${esc(it.source||"未知来源")}</span>
