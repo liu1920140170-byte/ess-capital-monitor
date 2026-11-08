@@ -56,6 +56,18 @@
   .ins p{margin:0;font-size:12.3px;line-height:1.7;color:#42484f}
   .ins .num{color:var(--red);font-variant-numeric:tabular-nums}
 
+  .idxbar{display:flex;align-items:center;justify-content:space-between;gap:14px 24px;flex-wrap:wrap;margin:16px 0 2px;padding:13px 16px;background:#fafbfc;border:1px solid var(--line);border-radius:4px}
+  .nowwrap{display:flex;flex-direction:column;gap:3px}
+  .now{font-size:24px;font-weight:800;color:#111;font-variant-numeric:tabular-nums;letter-spacing:1px;line-height:1}
+  .nowsub{font-size:11px;color:var(--dim2);letter-spacing:2px}
+  .idxs{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+  .idx .n{font-size:11.5px;color:var(--dim);margin-bottom:2px}
+  .idx .p{font-size:17px;font-weight:700;color:#111;font-variant-numeric:tabular-nums}
+  .idx .c{font-size:12px;font-variant-numeric:tabular-nums;font-weight:600}
+  .idx.up .p,.idx.up .c{color:#d92828}
+  .idx.dn .p,.idx.dn .c{color:#12995c}
+  .idxempty{font-size:12px;color:var(--dim2)}
+
   .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;margin:22px 0 8px;border-bottom:1px solid var(--line)}
   .tabs{display:flex;gap:2px;flex-wrap:wrap;align-items:stretch}
   .tab{padding:11px 14px 9px;font-size:13.5px;color:var(--dim);cursor:pointer;transition:.18s;border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -182,6 +194,14 @@
       <button id="btn">立即刷新</button>
     </div>
   </header>
+
+  <div class="idxbar">
+    <div class="nowwrap">
+      <div class="now" id="now">---- --:--:--</div>
+      <div class="nowsub">北京时间 · 实时</div>
+    </div>
+    <div class="idxs" id="idxs"><span class="idxempty">指数加载中…</span></div>
+  </div>
 
   <h2>动态主线<span class="en">AUTO BRIEF · 按当前时窗自动生成</span></h2>
   <section class="grid4" id="takeaways"></section>
@@ -313,6 +333,23 @@ let live = false, autoOn = true, countdown = 1800;
 const REFRESH_SEC = 1800;   // 自动刷新间隔：30 分钟
 let lastErrorAt = 0;
 const FILE_MODE = document.location.protocol === "file:";
+
+let idxData = [];                     // 指数行情（上证/深成/创业板）
+function fmtP(v){ const n=Number(v); if(!Number.isFinite(n)) return "—"; return n.toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderIdx(){
+  const el = document.getElementById("idxs");
+  if(!el) return;
+  if(!idxData || !idxData.length){ el.innerHTML = '<span class="idxempty">指数加载中…</span>'; return; }
+  el.innerHTML = idxData.map(q=>{
+    const up = (Number(q.pct)||0) >= 0;
+    return `<div class="idx ${up?"up":"dn"}"><div class="n">${esc(q.name)}</div><div class="p">${fmtP(q.price)}</div><div class="c">${up?"+":""}${fmtP(q.change)} ${up?"+":""}${(Number(q.pct)||0).toFixed(2)}%</div></div>`;
+  }).join("");
+}
+function renderClock(){
+  const d = new Date(), p = n=>String(n).padStart(2,"0");
+  const el = document.getElementById("now");
+  if(el) el.textContent = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
 
 function esc(s){
   return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
@@ -699,6 +736,7 @@ async function loadLive(silent, force){
     const keepOld = items.filter(i=> i._src==="snapshot" && inWindow(i) && !fresh.some(f=>keyOf(f.title)===keyOf(i.title)));
     items = fresh.concat(keepOld);
     meta = {fetchedAt: data.fetchedAt || new Date().toLocaleString("zh-CN"), window: data.window || windowLabel(), kind:"live", wechatCount: (data.wechat && data.wechat.count) || 0, directCount: data.direct || 0, deepCount: data.deep || 0};
+    if(data.index && data.index.length){ idxData = data.index; renderIdx(); }
     live = true;
     lastErrorAt = 0;
     updateFreshness();
@@ -721,6 +759,7 @@ async function loadLive(silent, force){
 }
 
 function tick(){
+  renderClock();
   if(FILE_MODE){ document.getElementById("cd").textContent = "—"; return; }
   if(!autoOn){ document.getElementById("cd").textContent = "已关闭"; return; }
   countdown--;
@@ -780,6 +819,8 @@ document.getElementById("autoOn").addEventListener("change", e=>{
 });
 
 render();
+renderClock();
+renderIdx();
 document.getElementById("stamp").textContent = stampText();
 if(!FILE_MODE){ loadLive(true); }
 else { setStatus("", "内置快照 · 本地文件"); document.getElementById("cd").textContent = "—"; }
