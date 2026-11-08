@@ -137,6 +137,7 @@ let lastError = '';
 let lastWechat = { ok: false, raw: 0, error: '', at: 0 };
 let wxCache = { at: 0, raw: [] };
 let wxInflight = null;
+let idxCache = [];              // 指数行情兜底（上次成功值）
 const startedAt = Date.now();
 
 /* ---------------- 工具函数 ---------------- */
@@ -200,6 +201,35 @@ function httpGet(url, redirects = 0, extraHeaders = {}) {
     req.setTimeout(FETCH_TIMEOUT_MS, () => req.destroy(new Error('timeout')));
     req.on('error', reject);
   });
+}
+
+/* ---------------- 指数行情（东财 push2，UTF-8 JSON） ---------------- */
+
+const IDX_QUOTES = [
+  { secid: '1.000001', name: '上证指数' },
+  { secid: '0.399001', name: '深证成指' },
+  { secid: '0.399006', name: '创业板指' }
+];
+
+async function fetchIndex() {
+  const out = await Promise.all(IDX_QUOTES.map(async q => {
+    try {
+      const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${q.secid}&fields=f43,f57,f58,f60,f169,f170&invt=2&fltt=2`;
+      const body = await httpGet(url);
+      const d = JSON.parse(body);
+      const it = d && d.data;
+      if (!it || it.f43 === undefined || it.f43 === '-') return null;
+      return {
+        name: q.name,
+        price: Number(it.f43),
+        change: Number(it.f169),
+        pct: Number(it.f170)
+      };
+    } catch (e) {
+      return null;
+    }
+  }));
+  return out.filter(Boolean);
 }
 
 /* ---------------- 抓取与筛选（与 PowerShell 版口径一致） ---------------- */
@@ -622,11 +652,13 @@ function ensureRefresh(days) {
 async function runRefresh(days) {
   lastAttemptAt = Date.now();
   // Google News、公众号池、直连快讯、储能垂直媒体 并行抓取，互不阻塞
-  const [newsRaw, wxRaw, sinaRaw, emRaw, bjxRaw] = await Promise.all([
+  const [newsRaw, wxRaw, sinaRaw, emRaw, bjxRaw, idx] = await Promise.all([
     fetchAll(days), fetchWechat(), fetchSinaZhibo(days), fetchEmKx(days),
-    fetchBjx(days).catch(e => { console.warn('[bjx] ' + e.message); return []; })
+    fetchBjx(days).catch(e => { console.warn('[bjx] ' + e.message); return []; }),
+    fetchIndex().catch(e => { console.warn('[idx] ' + e.message); return null; })
   ]);
   const raw = newsRaw.concat(wxRaw, sinaRaw, emRaw, bjxRaw);
+  if (idx && idx.length) idxCache = idx;
   const items = selectItems(raw, days);
   if (!items.length) {
     lastError = `上游返回 ${raw.length} 条，过滤后为 0`;
@@ -648,6 +680,7 @@ async function runRefresh(days) {
     wechat: { ok: lastWechat.ok, raw: lastWechat.raw, count: wechatCount, error: lastWechat.error || '' },
     direct: directCount,
     deep: deepCount,
+    index: idxCache,
     items
   };
   caches.set(days, { payload, at: Date.now() });
@@ -759,4 +792,4 @@ if (require.main === module) {
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
 
-module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat, fetchSinaZhibo, fetchEmKx, fetchBjx };
+module.exports = { parseRss, parseSogou, selectItems, classify, bigrams, decodeEntities, cnParts, fetchWechat, fetchSinaZhibo, fetchEmKx, fetchBjx, fetchIndex };
