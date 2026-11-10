@@ -203,9 +203,6 @@
     <div class="idxs" id="idxs"><span class="idxempty">指数加载中…</span></div>
   </div>
 
-  <h2>动态主线<span class="en">AUTO BRIEF · 按当前时窗自动生成</span></h2>
-  <section class="grid4" id="takeaways"></section>
-
   <div class="toolbar">
     <div class="tabs" id="tabs"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -484,49 +481,6 @@ function decorate(s, kw){
 }
 function plainNote(it){ return noteFor(it).replace(/<[^>]*>/g,""); }
 
-/* ---------- 动态主线：按类别取最新 + 金额/比例线索 ---------- */
-function renderBrief(vis){
-  const order = [
-    {k:"cap",  n:"扩产·项目"},
-    {k:"policy",n:"政策·标准"},
-    {k:"tech", n:"技术·产品"},
-    {k:"industry",n:"行业·市场"},
-    {k:"fund", n:"设立基金"},
-    {k:"mna",  n:"收并购"},
-    {k:"jv",   n:"合资·合作"},
-    {k:"ipo",  n:"上市·融资"},
-    {k:"risk", n:"出清·风险"}
-  ];
-  const themes = order.map((t,i)=>{
-    const list = vis.filter(x=>x.cat===t.k).sort((a,b)=> tsOf(b)-tsOf(a));
-    return Object.assign({}, t, {list:list, order:i});
-  }).filter(t=>t.list.length>0)
-    .sort((a,b)=> b.list.length-a.list.length || a.order-b.order)
-    .slice(0,5);
-
-  const box = document.getElementById("takeaways");
-  if(!themes.length){
-    box.innerHTML = `<div class="ins"><h3>当前时窗暂无线索</h3><p class="tk-empty">可切换「近72小时」或点击右上「立即刷新」重新抓取。</p></div>`;
-    return;
-  }
-  box.innerHTML = themes.map((t,i)=>{
-    const top = t.list.slice(0,2);
-    const amts = [], pcts = [];
-    t.list.forEach(it=>{
-      moneyHits(it.title).forEach(v=>{ if(amts.indexOf(v)<0) amts.push(v); });
-      pctHits(it.title).forEach(v=>{ if(pcts.indexOf(v)<0) pcts.push(v); });
-    });
-    const amtLine = (amts.length || pcts.length)
-      ? `<div class="tk-amt">${amts.length?`金额：<em class="amt">${amts.slice(0,3).join(" · ")}</em>`:""}${amts.length&&pcts.length?"　":""}${pcts.length?`比例：<em class="amt">${pcts.slice(0,2).join(" · ")}</em>`:""}</div>`
-      : "";
-    return `<div class="ins" data-cat="${t.k}" title="点击查看该类全部线索">
-      <h3>${"①②③④⑤"[i]} ${t.n}<span class="n">${t.list.length} 条</span></h3>
-      <ul class="tk">${top.map(it=>`<li>${decorate(it.title, keyword)}</li>`).join("")}</ul>
-      ${amtLine}
-    </div>`;
-  }).join("");
-}
-
 /* ---------- 公众号直连检索（云端抓取被搜狗限流时的人工入口） ---------- */
 const WX_TOPICS = [
   ["收并购", "储能 并购"],
@@ -573,8 +527,6 @@ function render(){
     b.classList.toggle("on", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
-
-  renderBrief(vis);
 
   let list = vis.slice();
   if(filterCat==="hot") list = list.filter(i=>i.hot);
@@ -768,15 +720,6 @@ function tick(){
   document.getElementById("cd").textContent = mm + ":" + ss;
 }
 
-// 动态主线卡片点击后跳到对应分类
-document.getElementById("takeaways").addEventListener("click", e=>{
-  const box = e.target.closest(".ins[data-cat]");
-  if(!box) return;
-  filterCat = box.dataset.cat;
-  render();
-  const list = document.getElementById("list");
-  if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
-});
 document.getElementById("tabs").addEventListener("click", e=>{
   const t = e.target.closest(".tab");
   if(!t) return;
