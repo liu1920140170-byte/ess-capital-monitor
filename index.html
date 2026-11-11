@@ -557,9 +557,8 @@ function render(){
       ? (amt ? `<span class="amt-chip" title="标题中的金额线索，非交易总额">${esc(amt)}</span>`
              : `<span class="mini" title="标题未披露具体金额">未披露金额</span>`)
       : "";
-    const fallback = (it.via==="news" || !it.via) && it._src!=="snapshot"
-      ? `<a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接国内可能打不开，可用百度按标题找原文">百度找原文</a>`
-      : "";
+    const canOpen = it.via==="sina" || it.via==="em" || it.via==="deep" || it.via==="wechat";
+    const openHref = canOpen ? it.link : `https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}`;
     html += `<div class="card${isHot ? " hot" : ""}" style="animation-delay:${Math.min(idx*20,240)}ms">
       <div class="crow">
         <span class="chip">${catOf(it.cat).label}</span>
@@ -568,9 +567,8 @@ function render(){
         ${amtTag}
         <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"}</span>
       </div>
-      <h4${isHot ? ' class="hot-title"' : ''}><a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.title||"")}">${decorate(it.title, keyword)}</a></h4>
+      <h4${isHot ? ' class="hot-title"' : ''}><a href="${esc(openHref)}" target="_blank" rel="noopener noreferrer" title="${esc(it.title||"")}">${decorate(it.title, keyword)}</a></h4>
       ${note?`<p class="note">${note}</p>`:""}
-      ${fallback?`<div class="src">${fallback}</div>`:""}
     </div>`;
   });
   document.getElementById("list").innerHTML = html;
