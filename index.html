@@ -127,6 +127,8 @@
   .hot-title{color:var(--red)!important}
   .hot-title:hover{color:#b71c1c!important}
   .card h4{margin:0 0 5px;font-size:15px;line-height:1.55;font-weight:600;color:#111}
+  .card h4 a{color:inherit}
+  .card h4 a:hover{color:var(--red)}
   .card:hover h4{color:#000}
   .note{font-size:12.4px;line-height:1.7;color:#4b5158;margin:0}
   .note b{color:#111;font-weight:600}
@@ -597,11 +599,6 @@ function render(){
     const c = catOf(it.cat).c;
     const note = noteFor(it);
     const tags = [];
-    if(live && it._src==="snapshot") tags.push(`<span class="mini" title="该条来自页面内置快照，实时源本轮未覆盖到">预置</span>`);
-    if(it.via==="wechat") tags.push(`<span class="mini wx" title="来源为微信公众号（搜狗微信搜索），点击下方原文跳转">公众号</span>`);
-    if(it.via==="deep") tags.push(`<span class="mini deep" title="储能垂直媒体编辑稿（北极星储能网），国内可直接打开">深度</span>`);
-    if(it.via==="sina" || it.via==="em") tags.push(`<span class="mini direct" title="来自新浪财经/东方财富快讯，原文链接国内可直接打开">直达</span>`);
-    if((!it.via || it.via==="news") && it._src!=="snapshot") tags.push(`<span class="mini ggl" title="经 Google News 聚合，国内打开可能较慢">聚合</span>`);
     const isHot = Number.isFinite(it.heat) ? it.hot : false;
     if(isHot) tags.unshift(`<span class="hot-tag" title="${heatReason(it)}">热</span>`);
     if(it._new) tags.push(`<span class="new">NEW</span>`);
@@ -610,10 +607,9 @@ function render(){
       ? (amt ? `<span class="amt-chip" title="标题中的金额线索，非交易总额">${esc(amt)}</span>`
              : `<span class="mini" title="标题未披露具体金额">未披露金额</span>`)
       : "";
-    const alt = (it.via==="news" || !it.via) && it._src!=="snapshot"
-      ? ` · <a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接在国内可能打不开，可用百度按标题找原文">百度找原文</a>`
+    const fallback = (it.via==="news" || !it.via) && it._src!=="snapshot"
+      ? `<a href="https://www.baidu.com/s?wd=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="聚合链接国内可能打不开，可用百度按标题找原文">百度找原文</a>`
       : "";
-    const wxSearch = ` · <a href="https://weixin.sogou.com/weixin?type=2&ie=utf8&query=${encodeURIComponent(it.title)}" target="_blank" rel="noopener noreferrer" title="按标题在微信公众号中搜索同名深度文章">微信找原文</a>`;
     html += `<div class="card${isHot ? " hot" : ""}" style="--c:#c9ced6;animation-delay:${Math.min(idx*20,240)}ms">
       <div class="hcol${isHot ? " on" : ""}" title="${heatReason(it)}"><b>${isHot ? it.heat : "·"}</b><span>${isHot ? "热" : "热度"}</span></div>
       <div class="cbody">
@@ -621,11 +617,11 @@ function render(){
         <span class="chip">${catOf(it.cat).label}</span>
         ${tags.join("")}
         ${amtTag}
-        <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"} · ${esc(it.source||"未知来源")}</span>
+        <span class="meta" title="${esc(it.pubDate||"")}">${t?relTime(t):"时间未知"}</span>
       </div>
-      <h4${isHot ? ' class="hot-title"' : ''}>${decorate(it.title, keyword)}</h4>
+      <h4${isHot ? ' class="hot-title"' : ''}><a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.title||"")}">${decorate(it.title, keyword)}</a></h4>
       ${note?`<p class="note">${note}</p>`:""}
-      <div class="src">原文 → <a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer" title="${esc(it.pubDate||"")} · ${esc(it.title||"")}">${esc(it.source||"打开链接")} ↗</a>${wxSearch}${alt}</div>
+      ${fallback?`<div class="src">${fallback}</div>`:""}
       </div>
     </div>`;
   });
