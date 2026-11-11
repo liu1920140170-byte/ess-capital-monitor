@@ -320,7 +320,11 @@ async function fetchSinaZhibo(days) {
       oldest = Math.min(oldest, ts);
       const text = stripTags(x.rich_text);
       if (text.length < 12) continue;
-      out.push({ title: buildHeadline(text), link: x.docurl || '', source: '新浪财经', ts, via: 'sina', query: 'sina7x24' });
+      const title = buildHeadline(text);
+      let note = '';
+      const ti = text.indexOf(title);
+      if (ti >= 0) note = text.slice(ti + title.length).replace(/^[】\s:：、,，。.-]+/, '').trim();
+      out.push({ title, link: x.docurl || '', source: '新浪财经', ts, via: 'sina', query: 'sina7x24', note });
     }
     if (oldest < cutoff) break;
     await sleep(400);
@@ -377,7 +381,9 @@ async function fetchEmKx(days) {
       oldest = Math.min(oldest, ts);
       const title = stripTags(x.title) || buildHeadline(x.digest);
       if (title.length < 8) continue;
-      out.push({ title, link: x.url_unique || '', source: '东方财富', ts, via: 'em', query: 'emkx' });
+      let note = stripTags(x.digest || '');
+      if (note === title) note = '';
+      out.push({ title, link: x.url_unique || '', source: '东方财富', ts, via: 'em', query: 'emkx', note });
     }
     if (oldest < cutoff) break;
     await sleep(400);
@@ -582,7 +588,8 @@ function selectItems(raw, days) {
       cat: classify(clean),
       via: it.via || 'news',
       srcCount: 1,
-      query: it.query
+      query: it.query,
+      note: it.note || ''
     };
     seenTxt.push({ len: clean.length, bg, row });
     rows.push(row);
